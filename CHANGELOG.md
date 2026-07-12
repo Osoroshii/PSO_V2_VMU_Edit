@@ -5,6 +5,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-12
+
 ### Added
 - **Tools category** in the item builder: Monomate/Dimate/Trimate, Mono/Di/Trifluid,
   Sol/Moon/Star Atomizer, Antidote/Antiparalysis, Telepipe, Trap Vision, Scape
@@ -13,13 +15,18 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   to add them. Stackable items (Mates, fluids, Atomizers, Scape Doll, etc.)
   get an Amount field; the bank-slot stack count (stored in a separate wrapper
   field, not in the item bytes themselves) is now set correctly too.
+- `docs/REFERENCE.md`: the deeper technical writeup (encryption derivation,
+  full character/item struct offsets, and gotchas found during
+  reverse-engineering), previously only existed outside the repo.
 
 ### Fixed
 - The "Parts" category's names were misaligned with the wrong byte codes
   starting partway through -- e.g. "S-red's Arms" was wrongly mapped to
   0x0D/0x06 (really 0x0E/0x00) -- corrected against the client's own item
   text index (`names-v2.json` from fuzziqersoftware/newserv). All 46 entries
-  re-verified to round-trip correctly.
+  re-verified to round-trip correctly. Also confirmed via real gameplay that
+  the "Weapons ___ Badge" items in this category are real/valid V2 items,
+  resolving an open question the correction raised.
 - The Save button (and the item-tab action buttons above it) could render as
   a blank, unlabeled gray sliver -- the Save bar was packed *after* a
   `fill="both", expand=True` notebook, which greedily claimed space and
