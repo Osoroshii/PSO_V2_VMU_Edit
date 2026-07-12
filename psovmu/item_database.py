@@ -140,23 +140,45 @@ MAG_SPECIES_COUNT = len(MAG_SPECIES)
 PB_NAMES = ["Farlla", "Estlla", "Golla", "Pilla", "Leilla", "Mylla & Youlla"]
 
 # Parts / special quest items: (name, data1_1, data1_2)
+# Sourced from newserv's names-v2.json (the client's own item text index) --
+# an earlier version of this list had names misaligned with the wrong byte
+# codes starting partway through 0x0D (e.g. "S-red's Arms" was wrongly given
+# 0x0D/0x06 -- its real code is 0x0E/0x00). Corrected against that source.
 PARTS = [
     ("Sorcerer's Right Arm", 0x0D, 0x00), ("S-beat's Arms", 0x0D, 0x01), ("P-arm's Arms", 0x0D, 0x02),
-    ("Delsaber's Right Arm", 0x0D, 0x03), ("C-bringer's Right Arm", 0x0D, 0x04), ("Delsaber's Left Arm", 0x0D, 0x05),
-    ("S-red's Arms", 0x0D, 0x06), ("Dragon's Claw", 0x0D, 0x07), ("Hildebear's Head", 0x0D, 0x08),
-    ("Berill Photon", 0x0E, 0x00), ("Parasitic Gene Flow", 0x0E, 0x01), ("Magicstone Iritista", 0x0E, 0x02),
-    ("Blue Black Stone", 0x0E, 0x03), ("Syncesta", 0x0E, 0x04), ("Magic Water", 0x0E, 0x05),
-    ("Parasitic Cell Type D", 0x0E, 0x06), ("Magic Rock Heart Key", 0x0E, 0x07), ("Magic Rock Moola", 0x0E, 0x08),
-    ("Star Amplifier", 0x0E, 0x09), ("Book of Hitogata", 0x0E, 0x0A), ("Heart of Chu Chu", 0x0E, 0x0B),
-    ("Parts of Egg Blaster", 0x0E, 0x0C), ("Heart of Angel", 0x0E, 0x0D), ("Heart of Devil", 0x0E, 0x0E),
-    ("Kit of Hamberger", 0x0E, 0x0F), ("Panther's Spirit", 0x0E, 0x10), ("Kit of Mark3", 0x0E, 0x11),
-    ("Kit of Master System", 0x0E, 0x12), ("Kit of Genesis", 0x0E, 0x13), ("Kit of Sega Saturn", 0x0E, 0x14),
-    ("Kit of Dreamcast", 0x0E, 0x15), ("Amplifier of Resta", 0x0E, 0x16), ("Amplifier of Anti", 0x0E, 0x17),
-    ("Amplifier of Shifta", 0x0E, 0x18), ("Amplifier of Deband", 0x0E, 0x19), ("Amplifier of Foie", 0x0E, 0x1A),
-    ("Amplifier (unnamed)", 0x0E, 0x1B), ("Amplifier (unnamed)", 0x0E, 0x1C), ("Amplifier (unnamed)", 0x0E, 0x1D),
-    ("Amplifier (unnamed)", 0x0E, 0x1E), ("Amplifier (unnamed)", 0x0E, 0x1F), ("Amplifier (unnamed)", 0x0E, 0x20),
-    ("Amplifier (unnamed)", 0x0E, 0x21), ("Amplifier (unnamed)", 0x0E, 0x22), ("Amplifier (unnamed)", 0x0E, 0x23),
-    ("Item (unnamed)", 0x0E, 0x24),
+    ("Delsaber's Right Arm", 0x0D, 0x03), ("C-bringer's Right Arm", 0x0D, 0x04), ("Delsabre's Left Arm", 0x0D, 0x05),
+    ("Book of KATANA1", 0x0D, 0x06), ("Book of KATANA2", 0x0D, 0x07), ("Book of KATANA3", 0x0D, 0x08),
+    ("S-red's Arms", 0x0E, 0x00), ("Dragon's Claw", 0x0E, 0x01), ("Hildebear's Head", 0x0E, 0x02),
+    ("Hildeblue's Head", 0x0E, 0x03), ("Parts of Baranz", 0x0E, 0x04), ("Belra's Right Arm", 0x0E, 0x05),
+    ("Joint Parts", 0x0E, 0x06), ("Weapons Bronze Badge", 0x0E, 0x07), ("Weapons Silver Badge", 0x0E, 0x08),
+    ("Weapons Gold Badge", 0x0E, 0x09), ("Weapons Crystal Badge", 0x0E, 0x0A), ("Weapons Steel Badge", 0x0E, 0x0B),
+    ("Weapons Aluminum Badge", 0x0E, 0x0C), ("Weapons Leather Badge", 0x0E, 0x0D), ("Weapons Bone Badge", 0x0E, 0x0E),
+    ("Letter of appreciation", 0x0E, 0x0F), ("Autograph Album", 0x0E, 0x10), ("High-level Mag Cell, Eno", 0x0E, 0x11),
+    ("High-level Mag Armor, Uru", 0x0E, 0x12), ("Special Gene Flou", 0x0E, 0x13), ("Sound Source FM", 0x0E, 0x14),
+    ('Parts of "68000"', 0x0E, 0x15), ("SH2", 0x0E, 0x16), ("SH4", 0x0E, 0x17),
+    ("Modem", 0x0E, 0x18), ("Power VR", 0x0E, 0x19), ("Glory in the past", 0x0E, 0x1A),
+    ("Valentine's Chocolate", 0x0E, 0x1B), ("New Year's Card", 0x0E, 0x1C), ("Christmas Card", 0x0E, 0x1D),
+    ("Birthday Card", 0x0E, 0x1E), ("Proof of Sonic Team", 0x0E, 0x1F), ("Special Event Ticket", 0x0E, 0x20),
+    ("Flower Bouquet", 0x0E, 0x21), ("Cake", 0x0E, 0x22), ("Accessories", 0x0E, 0x23),
+    ("Mr.Naka's Business Card", 0x0E, 0x24),
+]
+
+# Tools/consumables: (name, data1_1, data1_2, stackable). Also sourced from
+# names-v2.json. `data1_2` (0x0300, the tech disk slot) is intentionally
+# excluded -- tech disks are handled separately in build_tech_disk/decode_tech_disk.
+TOOLS = [
+    ("Monomate", 0x00, 0x00, True), ("Dimate", 0x00, 0x01, True), ("Trimate", 0x00, 0x02, True),
+    ("Monofluid", 0x01, 0x00, True), ("Difluid", 0x01, 0x01, True), ("Trifluid", 0x01, 0x02, True),
+    ("Sol Atomizer", 0x03, 0x00, True), ("Moon Atomizer", 0x04, 0x00, True), ("Star Atomizer", 0x05, 0x00, True),
+    ("Antidote", 0x06, 0x00, True), ("Antiparalysis", 0x06, 0x01, True),
+    ("Telepipe", 0x07, 0x00, True), ("Trap Vision", 0x08, 0x00, True), ("Scape Doll", 0x09, 0x00, True),
+    ("Monogrinder", 0x0A, 0x00, False), ("Digrinder", 0x0A, 0x01, False), ("Trigrinder", 0x0A, 0x02, False),
+    ("Power Material", 0x0B, 0x00, False), ("Mind Material", 0x0B, 0x01, False), ("Evade Material", 0x0B, 0x02, False),
+    ("HP Material", 0x0B, 0x03, False), ("TP Material", 0x0B, 0x04, False), ("Def Material", 0x0B, 0x05, False),
+    ("Hit Material", 0x0B, 0x06, False), ("Luck Material", 0x0B, 0x07, False),
+    ("Cell of MAG 502", 0x0C, 0x00, False), ("Cell of MAG 213", 0x0C, 0x01, False),
+    ("Parts of RoboChao", 0x0C, 0x02, False), ("Heart of Opa Opa", 0x0C, 0x03, False),
+    ("Heart of Pian", 0x0C, 0x04, False), ("Heart of Chao", 0x0C, 0x05, False),
 ]
 
 # Techniques: (name, tech_id)
@@ -187,6 +209,8 @@ ARMOR_NAME_BY_VARIANT = {variant: name for name, stars, variant, d, e in ARMOR}
 SHIELD_NAME_BY_VARIANT = {variant: name for name, stars, variant, d, e in SHIELDS}
 UNIT_NAME_BY_VARIANT = {variant: name for name, stars, variant, base, modamt in UNITS}
 PART_NAME_BY_CODES = {(d1, d2): name for name, d1, d2 in PARTS}
+TOOL_NAME_BY_CODES = {(d1, d2): name for name, d1, d2, stackable in TOOLS}
+TOOL_STACKABLE_BY_CODES = {(d1, d2): stackable for name, d1, d2, stackable in TOOLS}
 
 
 def weapon_category_for_class(cls):

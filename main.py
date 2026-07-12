@@ -161,7 +161,7 @@ class SerialDialog(tk.Toplevel):
 class AddItemDialog(tk.Toplevel):
     """Dialog for building a new item to place in a bank/inventory slot."""
     CATEGORIES = ["Guns", "Swords", "Wands", "Armor", "Shields", "Units", "Mags",
-                  "Technique Disks", "Parts"]
+                  "Technique Disks", "Parts", "Tools"]
 
     def __init__(self, parent, on_confirm, existing=None, char_class_idx=None):
         """existing: optional (data1, data2) of the item already in the target
@@ -187,7 +187,7 @@ class AddItemDialog(tk.Toplevel):
             else:
                 existing_category = {"armor": "Armor", "shield": "Shields", "unit": "Units",
                                       "mag": "Mags", "tech_disk": "Technique Disks",
-                                      "part": "Parts"}.get(kind)
+                                      "part": "Parts", "tool_item": "Tools"}.get(kind)
 
         self.title("Edit Item" if existing_category else "Add Item")
 
@@ -249,6 +249,8 @@ class AddItemDialog(tk.Toplevel):
             self._build_tech_disk_body()
         elif cat == "Parts":
             self._build_part_body()
+        elif cat == "Tools":
+            self._build_tool_body()
 
     # ---- Weapon (normal + S-rank) ----
     def _build_weapon_body(self, normal_list, srank_list):
@@ -593,6 +595,45 @@ class AddItemDialog(tk.Toplevel):
         _, d1, d2 = db.PARTS[idx]
         return items.build_part(d1, d2)
 
+    # ---- Tools ----
+    def _build_tool_body(self):
+        existing = self._existing if self._existing and self._existing["kind"] == "tool_item" else None
+        names = [n for n, d1, d2, stackable in db.TOOLS]
+        default_choice = names[0]
+        if existing:
+            match = next((n for n, d1, d2, stackable in db.TOOLS
+                          if d1 == existing["tool_kind"] and d2 == existing["tool_variant"]), None)
+            if match:
+                default_choice = match
+
+        tk.Label(self.body_frame, text="Tool item:").grid(row=0, column=0, sticky="w")
+        self.tool_choice = tk.StringVar(value=default_choice)
+        combo = ttk.Combobox(self.body_frame, textvariable=self.tool_choice, values=names,
+                              state="readonly", width=30)
+        combo.grid(row=0, column=1, sticky="w")
+        combo.bind("<<ComboboxSelected>>", lambda e: self._update_tool_amount_state())
+
+        tk.Label(self.body_frame, text="Amount (stackable items only):").grid(row=1, column=0, sticky="w")
+        default_amount = existing["amount"] if existing and existing.get("stackable") else 1
+        self.tool_amount_var = tk.IntVar(value=default_amount)
+        self.tool_amount_spin = tk.Spinbox(self.body_frame, from_=1, to=99,
+                                            textvariable=self.tool_amount_var, width=6)
+        self.tool_amount_spin.grid(row=1, column=1, sticky="w")
+        self._update_tool_amount_state()
+
+    def _update_tool_amount_state(self):
+        names = [n for n, d1, d2, stackable in db.TOOLS]
+        idx = names.index(self.tool_choice.get())
+        _, _, _, stackable = db.TOOLS[idx]
+        self.tool_amount_spin.config(state="normal" if stackable else "disabled")
+
+    def _confirm_tool(self):
+        names = [n for n, d1, d2, stackable in db.TOOLS]
+        idx = names.index(self.tool_choice.get())
+        _, d1, d2, stackable = db.TOOLS[idx]
+        amount = self.tool_amount_var.get() if stackable else 1
+        return items.build_tool(d1, d2, amount)
+
     def _confirm(self):
         cat = self.category_var.get()
         try:
@@ -618,6 +659,8 @@ class AddItemDialog(tk.Toplevel):
                 self.result = self._confirm_tech_disk()
             elif cat == "Parts":
                 self.result = self._confirm_part()
+            elif cat == "Tools":
+                self.result = self._confirm_tool()
         except Exception as e:
             messagebox.showerror("Error building item", str(e))
             return
@@ -843,7 +886,7 @@ class App:
                 else:
                     raw = ch.get_inventory_item_raw(self.dec, slot)
                 is_filled = slot < count
-                desc = items.describe_item(raw["data1"], raw["data2"]) if is_filled else "(empty)"
+                desc = items.describe_item(raw["data1"], raw["data2"], amount_override=raw.get("amount")) if is_filled else "(empty)"
                 tree.insert("", "end", iid=str(slot), text=str(slot), values=(desc,))
 
         refresh()
@@ -867,7 +910,14 @@ class App:
                 data1, data2 = result
                 item_id = 0x00800000 + slot  # arbitrary unique-ish id
                 if is_bank:
-                    ch.set_bank_item_raw(self.dec, slot, data1, item_id, data2)
+                    # Bank slots store their stack count in a wrapper field
+                    # outside ItemData -- data1[5] (used by inventory tools)
+                    # isn't read by the client for bank storage, so pull the
+                    # real amount from the decoded item when it's a stackable
+                    # tool instead of leaving the wrapper at its default of 1.
+                    decoded = items.decode_item(data1, data2)
+                    amount = decoded["amount"] if decoded.get("kind") == "tool_item" and decoded["stackable"] else 1
+                    ch.set_bank_item_raw(self.dec, slot, data1, item_id, data2, amount=amount)
                     count = max(ch.get_bank_count(self.dec), slot + 1)
                     ch.set_bank_count(self.dec, count)
                 else:

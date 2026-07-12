@@ -259,6 +259,29 @@ def decode_part(data1):
 
 
 # ---------------------------------------------------------------------------
+# Tools / consumables (data1[0] = 3, various data1[1] kinds -- see item_database.TOOLS)
+# ---------------------------------------------------------------------------
+
+def build_tool(kind, variant=0, amount=1):
+    data1 = bytearray(12)
+    data1[0] = 0x03
+    data1[1] = kind
+    data1[2] = variant
+    if db.TOOL_STACKABLE_BY_CODES.get((kind, variant), False):
+        data1[5] = amount
+    return bytes(data1), empty_data2()
+
+
+def decode_tool(data1):
+    kind = data1[1]
+    variant = data1[2]
+    stackable = db.TOOL_STACKABLE_BY_CODES.get((kind, variant), False)
+    amount = data1[5] if stackable else 1
+    return {"kind": "tool_item", "tool_kind": kind, "tool_variant": variant,
+            "amount": amount, "stackable": stackable}
+
+
+# ---------------------------------------------------------------------------
 # Generic dispatch
 # ---------------------------------------------------------------------------
 
@@ -281,16 +304,23 @@ def decode_item(data1, data2):
             return decode_tech_disk(data1)
         if data1[1] in (0x0D, 0x0E):
             return decode_part(data1)
-        return {"kind": "tool", "raw": data1.hex()}
+        return decode_tool(data1)
     if cls == 4:
         return {"kind": "meseta"}
     return {"kind": "unknown", "raw": data1.hex()}
 
 
-def describe_item(data1, data2):
+def describe_item(data1, data2, amount_override=None):
     """One-line human-readable summary for a table row -- resolves real item
-    names from item_database instead of showing raw class/variant hex codes."""
+    names from item_database instead of showing raw class/variant hex codes.
+
+    amount_override: bank slots store their stack count in a wrapper field
+    outside ItemData entirely (unlike inventory slots, which use data1[5]
+    directly) -- pass the bank wrapper's amount here when known, since
+    data1[5] is meaningless/zero for bank-stored tools."""
     d = decode_item(data1, data2)
+    if amount_override is not None and d.get("kind") == "tool_item":
+        d["amount"] = amount_override
     kind = d["kind"]
     if kind == "weapon":
         if d["s_rank"]:
@@ -330,6 +360,11 @@ def describe_item(data1, data2):
     if kind == "part":
         return db.PART_NAME_BY_CODES.get((d["data1_1"], d["data1_2"]),
                                           f"Unknown Part [{d['data1_1']:#04x}/{d['data1_2']:#04x}]")
+    if kind == "tool_item":
+        name = db.TOOL_NAME_BY_CODES.get((d["tool_kind"], d["tool_variant"]),
+                                          f"Unknown Tool [{d['tool_kind']:#04x}/{d['tool_variant']:#04x}]")
+        qty = f" x{d['amount']}" if d["stackable"] else ""
+        return f"{name}{qty}"
     if kind == "meseta":
         return "Meseta"
     return f"Unknown item ({d.get('raw', '')})"
