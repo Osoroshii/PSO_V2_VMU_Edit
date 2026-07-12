@@ -1,10 +1,13 @@
 # Changelog
 
 All notable changes to this project are documented here.
-Format loosely follows [Keep a Changelog](https://keepachangelog.com/); no
-version tags have been cut yet, so everything so far is under Unreleased.
+Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-07-12
+
+Initial release.
 
 ### Added
 - Drag-and-drop (or click-to-open) loading of PSO Dreamcast V2 VMU `.bin` save
