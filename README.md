@@ -4,11 +4,27 @@ Drag-and-drop editor for PSO Dreamcast V2 character VMU save files.
 
 ## Running
 
-Double-click `run.command`, or from a terminal:
+**macOS**: double-click `run.command` (it sets up a venv with `tkinterdnd2` on
+first run). If you'd rather run it manually, use Homebrew's Python rather than
+the system `/usr/bin/python3` -- macOS's bundled Python ships an old Tcl/Tk
+that renders the window blank:
 ```
 cd ~/PSOVMUEditor
-python3 main.py
+/opt/homebrew/bin/python3 main.py
 ```
+
+**Windows**: double-click `run.bat` (same first-run venv setup), or from a
+terminal:
+```
+cd PSOVMUEditor
+python main.py
+```
+The official python.org installer for Windows already includes a modern
+Tcl/Tk, so no special interpreter path is needed there.
+
+Either platform needs `tkinterdnd2` installed (`pip install -r
+requirements.txt`) for drag-and-drop; without it the app still runs, just with
+a "click to open" file picker instead of a drop target.
 
 ## Usage
 
