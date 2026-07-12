@@ -629,7 +629,8 @@ class App:
     def __init__(self, root):
         self.root = root
         self.root.title("PSO V2 VMU Editor")
-        self.root.geometry("900x650")
+        self.root.geometry("900x780")
+        self.root.minsize(850, 700)
 
         self.file_path = None
         self.image_bytes = None
@@ -728,6 +729,22 @@ class App:
         for w in self.main_frame.winfo_children():
             w.destroy()
 
+        # Pack the Save bar at the bottom FIRST so it always gets its natural
+        # size reserved. Packing it after a fill="both"/expand=True notebook
+        # let the notebook claim all the space whenever the window wasn't
+        # tall enough for everything, squeezing this bar down to a sliver
+        # with no visible label -- packing bottom-up avoids that entirely.
+        save_frame = tk.Frame(self.main_frame)
+        save_frame.pack(side="bottom", fill="x", pady=8)
+        # A plain ttk.Button (rather than tk.Button with a forced bg/fg) renders
+        # with the native macOS Aqua look in both light and dark mode -- forcing
+        # colors on a tk.Button produces a flat, oddly-bordered mismatch with the
+        # rest of the native UI.
+        style = ttk.Style()
+        style.configure("Save.TButton", font=("", 12, "bold"), padding=(18, 8))
+        ttk.Button(save_frame, text="Save", command=self._save, style="Save.TButton").pack(
+            side="right", padx=8)
+
         notebook = ttk.Notebook(self.main_frame)
         notebook.pack(fill="both", expand=True)
 
@@ -742,17 +759,6 @@ class App:
         inv_tab = tk.Frame(notebook)
         notebook.add(inv_tab, text=f"Inventory ({ch.get_inventory_count(self.dec)}/{ch.INVENTORY_CAPACITY})")
         self._build_item_tab(inv_tab, is_bank=False)
-
-        save_frame = tk.Frame(self.main_frame)
-        save_frame.pack(fill="x", pady=8)
-        # A plain ttk.Button (rather than tk.Button with a forced bg/fg) renders
-        # with the native macOS Aqua look in both light and dark mode -- forcing
-        # colors on a tk.Button produces a flat, oddly-bordered mismatch with the
-        # rest of the native UI.
-        style = ttk.Style()
-        style.configure("Save.TButton", font=("", 12, "bold"), padding=(18, 8))
-        ttk.Button(save_frame, text="Save", command=self._save, style="Save.TButton").pack(
-            side="right", padx=8)
 
     def _build_character_tab(self, tab):
         dec = self.dec
@@ -821,7 +827,7 @@ class App:
 
     def _build_item_tab(self, tab, is_bank):
         capacity = ch.BANK_CAPACITY if is_bank else ch.INVENTORY_CAPACITY
-        tree = ttk.Treeview(tab, columns=("desc",), show="tree headings", height=20)
+        tree = ttk.Treeview(tab, columns=("desc",), show="tree headings", height=16)
         tree.heading("#0", text="Slot")
         tree.heading("desc", text="Item")
         tree.column("#0", width=60)

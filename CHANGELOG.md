@@ -5,6 +5,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- The Save button (and the item-tab action buttons above it) could render as
+  a blank, unlabeled gray sliver -- the Save bar was packed *after* a
+  `fill="both", expand=True` notebook, which greedily claimed space and
+  squeezed the bar down whenever the window wasn't tall enough. Fixed by
+  reserving the Save bar's space first (`side="bottom"`) before the notebook
+  fills the remainder, and by increasing the default window size so
+  everything fits without cramping.
+
 ## [0.1.0] - 2026-07-12
 
 Initial release.
