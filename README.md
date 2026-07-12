@@ -70,6 +70,10 @@ psovmu/item_database.py         Curated item lists (names/stats/byte codes)
 psovmu/data/level-table-v1-v2.json   Real per-class level-up stat curves
 ```
 
+See [docs/REFERENCE.md](docs/REFERENCE.md) for the deeper technical writeup --
+encryption derivation, full struct offsets, and gotchas found during
+reverse-engineering (useful if you're extending item/character support).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
