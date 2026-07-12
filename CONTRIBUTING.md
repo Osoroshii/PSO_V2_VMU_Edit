@@ -41,7 +41,19 @@ psovmu/data/                    Bundled reference tables (level curve, item para
 
 ## Testing changes
 
-There's no automated test suite yet. To verify a change:
+There's a small pytest suite (`tests/`) covering the encryption round-trip,
+every item category's encode/decode round-trip, and the level-sync math --
+run it with:
+```
+pip install -r requirements-dev.txt
+pytest tests/ -v
+```
+It runs in CI (`.github/workflows/ci.yml`) across macOS/Windows/Ubuntu on
+every push and PR. It's deliberately synthetic (no real save data, no GUI/Tk
+interaction) -- it catches regressions in the byte-level logic, but it can't
+verify anything about how an item actually behaves in-game.
+
+For that, and for any new item/encoding work:
 1. Use a real VMU save file (or ask in an issue/discussion if you need a sample).
 2. Load it, make an edit, and Save -- the app backs up the original to `.bak`
    the first time, re-encrypts, verifies the round-trip, and re-reads the
@@ -51,7 +63,8 @@ There's no automated test suite yet. To verify a change:
    (Flycast) or on real hardware -- some encoding assumptions that look right
    on paper (or even match community reverse-engineering docs) have turned
    out to be wrong in practice. See the GOTCHA comments in `psovmu/items.py`
-   and `psovmu/character.py` for examples already found this way.
+   and `psovmu/character.py` for examples already found this way -- and add a
+   regression test alongside the fix when you find one.
 
 ## A note on item/format data
 

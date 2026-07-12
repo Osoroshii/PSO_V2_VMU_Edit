@@ -5,6 +5,21 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- GitHub Actions CI (`.github/workflows/ci.yml`): runs on every push/PR across
+  macOS, Windows, and Ubuntu, on Python 3.11 and 3.13.
+- `tests/` pytest suite (25 tests): encryption round-trip, encode/decode
+  round-trip for every item category (including all 46 Parts and 31 Tools
+  entries), and level-sync math (with and without preserved Material bonus).
+  Synthetic data only, no real save files bundled. `requirements-dev.txt`
+  added for `pytest`.
+
+### Fixed
+- `build_srank_weapon`'s `special_index` hardcoding (confirmed broken via real
+  gameplay, see 0.2.0 below) only lived at the GUI call site -- any other
+  caller could have silently reintroduced a broken item. Now enforced inside
+  the function itself regardless of what's passed.
+
 ## [0.2.0] - 2026-07-12
 
 ### Added

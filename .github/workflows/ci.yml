@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Ubuntu's default python3 package excludes tkinter; macOS/Windows
+      # runners already include it via actions/setup-python.
+      - name: Install Tk (Ubuntu only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # Syntax-check only (no execution) -- doesn't require a real display or
+      # a working tkinterdnd2 import, so this step is reliable on every OS
+      # even where a hosted runner's Tk support is flaky.
+      - name: Syntax-check source files
+        run: python -m compileall -q main.py psovmu
+
+      - name: Run test suite
+        run: python -m pytest tests/ -v

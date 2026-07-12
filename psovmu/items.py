@@ -57,7 +57,14 @@ def build_srank_weapon(weapon_class, name, special_index=0, grind=0):
     trailing character slots as a stop marker the way this (newserv-derived)
     encoding assumes. Until that's root-caused, treat custom S-rank names as
     UNRELIABLE; leaving name="" (the default/safe path below) is confirmed to
-    work correctly."""
+    work correctly.
+
+    special_index is ignored (data1[2] is always written as 0) regardless of
+    what's passed -- confirmed via real gameplay that a nonzero value there
+    makes the client treat the whole item as an unrecognized variant (garbled
+    name AND unequippable, same root cause as the name bug above). Kept as a
+    parameter only for call-site compatibility; do not resurrect its effect
+    without new evidence."""
     name = name.upper()[:8]
     for c in name:
         if c not in S_RANK_CHARS:
@@ -65,7 +72,7 @@ def build_srank_weapon(weapon_class, name, special_index=0, grind=0):
     data1 = bytearray(12)
     data1[0] = 0x00
     data1[1] = weapon_class
-    data1[2] = special_index
+    data1[2] = 0
     data1[3] = grind
     if not name:
         # No custom name: leave the name field entirely zeroed (matches the

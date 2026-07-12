@@ -1,6 +1,7 @@
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Personal save files, backups, and per-user config -- never belongs in the repo
 *.bin
