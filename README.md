@@ -2,6 +2,8 @@
 
 Drag-and-drop editor for PSO Dreamcast V2 character VMU save files.
 
+![Screenshot](docs/screenshot.png)
+
 ## Running
 
 **macOS**: double-click `run.command` (it sets up a venv with `tkinterdnd2` on
