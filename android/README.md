@@ -5,10 +5,13 @@ built with [Kivy](https://kivy.org) so it can be packaged as a real Android APK.
 `psovmu/` in this directory is a symlink to `../psovmu` -- there's only one copy
 of the crypto/character/item logic, shared by both UIs.
 
-**Status**: first screen only. Remembers a VMU folder + serial number, scans
-that folder for every `.bin` file with a real PSO character in it, and shows
-"CharacterName (Class, LvNN)" instead of raw filenames -- picking a character
-doesn't open an editor yet, that's the next milestone.
+**Status**: folder picker + character editor. Remembers a VMU folder + serial
+number, scans that folder for every `.bin` file with a real PSO character in
+it, and shows "CharacterName (Class, LvNN)" instead of raw filenames. Tapping
+one opens an editor for level/EXP/meseta/stats/quest-flags (mirroring the
+desktop app's Character tab) with a working Save that round-trip-verifies and
+backs up before writing, same as the desktop app. **Not ported yet: Bank/
+Inventory item editing** -- that's the next milestone.
 
 ## Running on desktop (do this first)
 
@@ -48,6 +51,13 @@ version-pinning issues Docker sidesteps entirely.
 
 ## Notes for whoever picks this up next
 
+- `session.py`'s `CharacterSession` is the one place that loads/decrypts and
+  re-encrypts/verifies/saves a character file -- ported directly from the
+  desktop app's `App._load_path`/`_save` in `../main.py`. Both the folder
+  scan's name/level preview (`vmu_scan.py`) and the real editor screen
+  (`main.py`'s `EditorScreen`) load through it, so there's exactly one
+  implementation of that flow to keep in sync with the desktop app if the
+  underlying `psovmu` core ever changes.
 - `storage.py` persists settings via Kivy's `App.user_data_dir`, which
   resolves correctly on every platform Kivy supports with no platform
   branching needed in this app's own code.

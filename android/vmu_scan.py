@@ -6,7 +6,9 @@ flow does.
 """
 import os
 
-from psovmu import character, crypto, vmu
+from psovmu import character, crypto
+
+from session import CharacterSession
 
 
 class ScannedVMU:
@@ -22,35 +24,25 @@ class ScannedVMU:
 def _peek_character(path, serial):
     """Best-effort: decrypt just far enough to read name/class/level. Returns
     a ScannedVMU. Never raises -- any failure (not a VMU image, no character
-    file, wrong serial) is reported in the result instead."""
+    file, wrong serial) is reported in the result instead.
+
+    Blank/uninitialized VMU images (common for unused emulator slots) and any
+    other non-VMU or corrupted .bin file can fail parsing in ways `vmu.py`
+    doesn't guard against itself (it was only ever fed one user-picked, known-
+    good file at a time before this scan-a-whole-folder feature existed) --
+    anything unexpected here means "not a real character save," not a crash.
+    """
     name = os.path.basename(path)
     try:
-        with open(path, "rb") as f:
-            image_bytes = f.read()
-    except OSError as e:
-        return ScannedVMU(path, False, name, error=f"can't read file ({e})")
-
-    # Blank/uninitialized VMU images (common for unused emulator slots) and any
-    # other non-VMU or corrupted .bin file can fail parsing in ways `vmu.py`
-    # doesn't guard against itself (it was only ever fed one user-picked, known-
-    # good file at a time before this scan-a-whole-folder feature existed) --
-    # anything unexpected here means "not a real character save," not a crash.
-    try:
-        entry = vmu.find_character_file(image_bytes)
-        if entry is None:
-            return ScannedVMU(path, False, name, error="no character save in this file")
-        file_bytes, _chain = vmu.read_file_bytes(image_bytes, entry.start_block)
-        data_section, data_size, _offset = vmu.get_character_data_section(file_bytes)
-    except Exception:
-        return ScannedVMU(path, False, name, error="not a readable VMU image")
-
-    try:
-        dec = bytearray(crypto.decrypt_fixed(data_section, data_size, serial))
+        session = CharacterSession.load(path, serial)
+    except (OSError, ValueError) as e:
+        return ScannedVMU(path, False, name, error=str(e) or "no character save in this file")
     except crypto.ChecksumError:
         return ScannedVMU(path, False, name, error="locked (serial doesn't match)")
     except Exception:
         return ScannedVMU(path, False, name, error="not a readable VMU image")
 
+    dec = session.dec
     char_name = character.get_name(dec).strip() or "(unnamed)"
     class_name = character.get_class_name(dec)
     level = character.get_displayed_level(dec)
