@@ -9,6 +9,8 @@ source.include_exts = py,png,jpg,kv,atlas,json
 # app) -- buildozer/python-for-android follows symlinks when copying source,
 # so nothing extra is needed here to bundle it.
 
+icon.filename = %(source.dir)s/icon.png
+
 version = 0.1.0
 
 # plyer's Android filechooser backend needs pyjnius (pulled in automatically);

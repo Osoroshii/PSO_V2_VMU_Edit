@@ -331,6 +331,7 @@ class EditorScreen(Screen):
 class PSOVMUApp(App):
     def build(self):
         self.title = "PSO VMU Editor"
+        self.icon = os.path.join(os.path.dirname(__file__), "icon.png")
         sm = ScreenManager()
         sm.add_widget(PickerScreen(name="picker"))
         sm.add_widget(EditorScreen(name="editor"))
