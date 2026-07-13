@@ -34,6 +34,9 @@ one folder), then enter your disc/account serial number and click
 
 ## Building an actual APK
 
+See [INSTALL.md](INSTALL.md) for the full build-and-install walkthrough for a
+real device. Short version below.
+
 Uses [Buildozer](https://buildozer.readthedocs.io) (`buildozer.spec` is already
 set up in this directory). **Buildozer's Android target is unreliable on
 macOS** -- the officially recommended, actually-reproducible way to build is
