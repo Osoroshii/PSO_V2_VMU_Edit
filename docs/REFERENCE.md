@@ -785,3 +785,220 @@ these from item names. Sources used this session, in order of how they were used
     level-200-shows-as-201 bug), that's a real signal to re-derive the encoding rather
     than assume the emulator/game is being flaky — both those bugs turned out to be
     genuine encoding mistakes on the save-editing side.
+
+---
+
+## 10. Extracting the full item catalog straight from a real GD-ROM image
+
+This session replaced the hand-curated "8-star+ weapons / 9-star+ armor" lists in
+`psovmu/item_database.py` with the complete V2 catalog (every weapon/armor/shield/unit,
+206 weapons total including a whole missing Knuckle category, 53 armors, 58 shields,
+68 units) by extracting and parsing the actual disc's own `ITEMPMT.PRS`, then
+cross-referencing it against community sources for names. Full pipeline, in case a
+future session needs to pull something else off a PSO disc image (a different table,
+a different version, etc.):
+
+### 10.1 DiscJuggler `.cdi` → raw ISO9660 image
+
+A `.cdi` (DiscJuggler) GD-ROM rip stores session/track **metadata near the END of the
+file**, while the actual raw sector data for every track is laid out sequentially
+starting from **absolute file offset 0** — track data comes first in the file, its
+descriptor comes much later. Parsing algorithm (ported from `cdirip` by DeXT/Lawrence
+Williams, `github.com/jozip/cdirip`, `cdi.c`/`cdirip.c`):
+
+1. Read the last 8 bytes of the file: `[version:u32][header_offset:u32]`. Version
+   `0x80000006` = DiscJuggler v3.5+ (what this session's `Ragol_PSO_USv2.cdi` was) —
+   for that version, the session/track table lives at `file_length - header_offset`;
+   for v2/v3 it's just `header_offset` (absolute).
+2. At that position: `sessions:u16`, then per session `tracks:u16`, then per track a
+   variable-length descriptor (filename, pregap, length, mode, sector_size, etc. — see
+   the full field list in `CDI_read_track` in the fetched `cdi.c`/`cdirip.c`, or ask a
+   fresh session to re-fetch from that repo).
+3. **Track data position is NOT derivable from the descriptor itself** — it's a
+   running total: track 1's data starts at file offset 0; each subsequent track's data
+   starts at `previous_track_data_offset + previous_track.total_length * sector_size`.
+   This tripped up the first attempt (assumed the position right after reading a
+   track's descriptor was that track's data — it's actually the position of the *next
+   track's descriptor*, since all descriptors are bunched together near the end).
+4. This PSO V2 disc had 2 sessions: session 0 (1 audio track, low-density CD area,
+   mode=0/Audio/2352-byte sectors, ignorable) and session 1 (1 data track, the GD-ROM
+   high-density area — `mode=2`/`sector_size=2336`, `pregap=150`, `length=346440`
+   sectors, `start_lba=11702`). To extract as a plain ISO: skip `pregap * sector_size`
+   bytes, then for each of `length` sectors read `sector_size` bytes and keep only
+   `sector[8:8+2048]` (mode2/2336 sectors have an 8-byte subheader before the 2048
+   bytes of real data; discard the trailing ~280 bytes of EDC/ECC per sector too).
+5. **Gotcha**: LBA values *stored inside* the resulting ISO9660 filesystem (root
+   directory extent, path table location, every directory record's extent) are
+   **absolute physical CD sector numbers** (`track.start_lba` + a track-relative
+   offset), NOT relative to byte 0 of the extracted image — even though the ISO9660
+   PVD (Primary Volume Descriptor) itself sits at the *conventional* relative sector
+   16. Subtract `track.start_lba` (11702 for this disc) from every LBA field read out
+   of the filesystem before using it to index into the extracted image. Validated by
+   finding "CD001" at the conventional sector 16 (confirming overall byte alignment),
+   then confirming the root directory only had real content once this offset was
+   subtracted from its extent field.
+6. `pycdlib` (pip) choked on this disc's path table (a real parsing bug in that
+   library for this specific format quirk, not a mistake in the extraction) — wrote a
+   ~60-line minimal ISO9660 directory-record walker instead (root dir extent from PVD
+   offset `156`, then recursively parse 34-byte directory records: `length`,
+   `extent_lba` @ offset 2 (u32 LE), `size` @ offset 10, `flags` @ offset 25 (bit
+   0x02 = directory), `name_len` @ offset 32, name follows). Don't burn time on
+   `pycdlib` for a DC disc again without checking this note first.
+7. `PSO/TEXTENGLISH.PR2`/`.PR3` (the DC equivalent of "unitxt") turned out to use a
+   **different, still-undetermined compression** — NOT the standard PRS algorithm
+   below (confirmed: that decoder works perfectly on `ITEMPMT.PRS` from the same disc,
+   but fails within the first few dozen bytes on `TEXTENGLISH.PR2` at every tried byte
+   offset). Cracking it would need disassembling the game executable. Not pursued
+   this session — item names instead come from newserv's `names-v2.json` (see 10.3).
+
+### 10.2 PRS decompression (works for `ITEMPMT.PRS`, NOT for `TEXTENGLISH.PR2`/`.PR3`)
+
+Ported byte-for-byte from `fuzziqersoftware/newserv`'s `src/Compression.cc`
+(`prs_decompress_with_meta`). LZ77 with an interleaved control-bit + data-byte stream,
+read from the SAME byte sequence (control bits refill from the next unread byte when
+exhausted — there's no separate "control stream" region in the file).
+
+```python
+def prs_decompress(data: bytes) -> bytes:
+    out = bytearray()
+    pos = 0
+    n = len(data)
+    bits = 0
+
+    def get_u8():
+        nonlocal pos
+        b = data[pos]; pos += 1
+        return b
+
+    def read_bit():
+        nonlocal bits
+        if not (bits & 0x100):
+            bits = 0xFF00 | get_u8()
+        ret = bits & 1
+        bits >>= 1
+        return ret
+
+    try:
+        while pos < n:
+            if read_bit():                      # control 1 = literal byte
+                out.append(get_u8())
+            else:
+                if read_bit():                   # control 01 = long backreference
+                    a = get_u8(); a |= get_u8() << 8
+                    off = a >> 3
+                    if off == 0:
+                        break                     # all-zero offset = stop opcode
+                    offset = off - 0x2000          # 13-bit signed, always negative
+                    count = a & 7
+                    count = count + 2 if count else get_u8() + 1  # extended backref
+                else:                             # control 00 = short backreference
+                    count = read_bit() << 1
+                    count = (count | read_bit()) + 2
+                    offset = get_u8() - 0x100      # 8-bit signed, always negative
+                read_off = len(out) + offset
+                for _ in range(count):             # byte-at-a-time copy (supports
+                    out.append(out[read_off])       # overlapping/self-referential runs)
+                    read_off += 1
+    except IndexError:
+        pass  # ran off the end mid-opcode -- treat as a truncated/unterminated stream
+    return bytes(out)
+```
+
+Validated: `ITEMPMT.PRS` (8776 bytes) → 24928 bytes, decoded structure matched
+newserv's documented `RootV2` struct offsets exactly (see 10.3), and decoded armor
+stats matched known real PSO armor progression (Frame id=354 dfp=5→Ultimate Frame
+dfp climbing to 25, req_level climbing 0→15 in step).
+
+### 10.3 `ITEMPMT.PRS` structure (decompressed payload)
+
+Root struct (`RootV2` in newserv's `ItemParameterTable.cc`) is `0x44` bytes, found by
+searching the decompressed buffer for the byte sequence matching the *expected*
+`armor_table` field value (`0x5A5C`, hardcoded in newserv's source comments for the
+V2 version specifically) — landed at decompressed-file offset `24428` for this disc
+(near the very end of the 24928-byte payload; all the actual item data sits *before*
+the root header, mirroring the outer `.cdi` file's own "data first, metadata last"
+layout). All 17 fields (`entry_count`, `weapon_table`, `armor_table`, `unit_table`,
+`tool_table`, `mag_table`, plus 11 more auxiliary tables) matched newserv's documented
+V2 offsets exactly, confirming both the PRS decode and the struct layout.
+
+Each `*_table` root field points to an `ArrayRefT` (`{count: u32, offset: u32}`, 8
+bytes) — for `armor_table` there are **two** consecutive `ArrayRefT`s at that location
+(index 0 = Armor, `count=53`; index 1 = Shield, `count=58` — both counts matched this
+session's independently-generated community-sourced catalog exactly). `weapon_table`
+points to an array of **one `ArrayRefT` per weapon class byte** (`data1[1]`, e.g. index
+6 = Handgun), each giving the `count`/`offset` of that class's variant array.
+`unit_table`/`tool_table`/`mag_table` are single `ArrayRefT`s (`count=68`/`3`/`57` for
+this disc). Item entry structs (`WeaponV1V2`=0x18 bytes, `ArmorOrShieldV1V2`=0x18,
+`UnitV1V2`=0x0C, `MagV2`=0x14, `ToolV1V2`=0x10 — exact field layouts in newserv's
+`ItemParameterTable.cc`, search for `V1V2`) do **not** store `data1[1]`/`data1[2]`
+as explicit fields — those are implied by the entry's position in the nested
+array structure, same as the community JSON's key scheme (`data1[0]data1[1]data1[2]`
+as 6 hex chars).
+
+Didn't fully hand-decode the nested weapon array (137 classes × several variants each,
+plus S-rank special-casing) since newserv's own pre-parsed
+`item-parameter-table-pc-v2.json` already does this correctly and its counts/values
+were cross-validated against this disc's raw armor data — no reason to duplicate that
+work byte-for-byte. If a future session needs to re-derive it from scratch anyway
+(e.g. to catch a case where the community JSON might be wrong), the struct offsets
+above are the starting point.
+
+### 10.4 Building the full catalog from community sources, cross-checked against the disc
+
+Sources (same ones already used for the curated lists, see section 8 above):
+- `system/tables/item-parameter-table-pc-v2.json` (fuzziqersoftware/newserv) — real
+  stats, `StarValues`/`StarValueBaseIndex` for star ratings (`stars =
+  StarValues[entry["ID"] - StarValueBaseIndex]`), keyed by 6-hex `data1[0..2]`.
+- `system/tables/names-v2.json` (same repo) — real display names, same key scheme.
+- Weapon category (Guns/Swords/Wands tab in the GUI) comes from the PMT's
+  `WeaponKind` field: `{1,2,3,4,5,13,14,0}` (Saber/Sword/Dagger/Partisan/Slicer/
+  Claw/DoubleSaber/Knuckle) → Swords tab; `{6,7,8,9}` (Handgun/Rifle/Mechgun/Shot) →
+  Guns tab; `{10,11,12}` (Cane/Rod/Wand) → Wands tab.
+- S-rank weapon classes (`data1[1]` in `0x70-0x88` or `0xA5-0xA9`) are excluded from
+  the generated lists — they're handled separately by the existing `GUN_SRANK`/
+  `SWORD_SRANK`/`WAND_SRANK` name-encoding logic (see section 7), which was already
+  validated against real gameplay in an earlier session and shouldn't be touched.
+- Of 570 total PMT entries, only 5 had no name in `names-v2.json` — all shared
+  `ID=353` (or `ID=78` for weapon class/variant `00/00`, i.e. bare fists), a
+  consistent "empty/invalid slot" sentinel used across every category. Safe to skip.
+
+**Gotcha: duplicate display names.** The client's own text table gives several
+distinct items the *exact same* display string — most notably all 7 AGITO variants
+(`data1[1]=0x10`, variants 1-6, plus OROTIAGITO at variant 0) are simply named
+"AGITO" with no distinguishing suffix in the real game text (the old curated list's
+"AGITO (AUW 1975)" etc. suffixes were a community/wiki convention, not in-game text).
+Any UI that resolves a user's dropdown selection back to a specific item via
+`display_list.index(chosen_string)` will silently and permanently only let the user
+pick the FIRST of several identically-labeled entries — this was a real bug introduced
+by moving from the (all-unique-named) curated subset to the full catalog, caught by
+building the item list, diffing against `Counter`, and specifically probing whether
+every AGITO variant round-tripped to a distinct `(class, variant)` pair through the
+actual GUI dialog code (not just at the data-list level) before calling it done. Fixed
+generically in `item_database.py` via `weapon_labels()`/`item_labels()`, which append
+a `" [i/n]"` disambiguator to any repeated label — `main.py`'s six weapon/armor/unit
+label-list call sites all now go through those two functions (and cache the result on
+the dialog instance) instead of rebuilding an ad-hoc `f"{n} ({s}*)"` list inline,
+which is what made the collision unresolvable in the first place.
+
+**Unrelated pre-existing bug found (and fixed) while touching this code**: the
+bundled `data/item-parameter-table-pc-v2-reduced.json`'s Unit entries have
+`"UsabilityFlags": null` for every unit (units genuinely have no such field in the
+real on-disk struct — confirmed in 10.3 above — so there's nothing to reduce down to;
+whoever generated that file defaulted the missing field to `null` rather than
+omitting it). `check_equip()` did `entry["UsabilityFlags"] & char_bits` unconditionally,
+which crashed with a `TypeError` on `None & int` — meaning the Unit tab's "who can use
+this" label has been crashing since it was added, for every unit, in every session
+before this one (no test exercised it — the existing pytest suite is data-round-trip
+only, not GUI interaction). Fixed by treating `None` as "usable by everyone" instead
+of indexing into it. If future PMT-driven equip-checks add new item categories, check
+whether their reduced-JSON entries have real data before trusting a bare `entry[key]`.
+
+**Verification approach used**: rather than trust "the data list is correct" as the
+finish line, wrote a headless Tk smoke test that instantiates the actual
+`AddItemDialog` (no visible window, `root.withdraw()`), cycles through all 10
+categories, and for the collision-prone ones (weapons generally, AGITO specifically)
+drives the real `_resolve_weapon_class_variant`/`_confirm_*` code paths end-to-end
+and asserts every differently-labeled item resolves to a distinct `(class, variant)`.
+This is what caught the label-collision bug above — the underlying Python list of
+tuples looked completely fine in isolation; the bug only showed up in how the GUI
+maps a display string back to a row.

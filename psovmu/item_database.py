@@ -1,81 +1,114 @@
-"""Curated item lists researched during the reverse-engineering session. Not the
-full game catalog -- covers guns/swords/wands (8+ stars), armor/shields/units (9+
-stars), all 58 mag species, all 19 techniques, and the 46 real "Parts" quest items.
-See /Volumes/MacEMU/bios/dc/PSO Saves/ClaudeVMUWork/ for how these were derived.
+"""The full V2 item catalog: every real weapon/armor/shield/unit, all 58 mag
+species, all 19 techniques, and the 46 real "Parts" quest items.
+
+GUNS/SWORDS/WANDS/ARMOR/SHIELDS/UNITS were generated from this disc's own
+ITEMPMT.PRS (extracted and PRS-decompressed straight from a real V2 GD-ROM
+image, cross-checked byte-for-byte against fuzziqersoftware/newserv's
+documented RootV2 struct offsets and against a real character's armor bank --
+see /Volumes/MacEMU/bios/dc/PSO Saves/ClaudeVMUWork/ for the extraction
+writeup) with names from newserv's names-v2.json (the client's own item text
+index) and stats/star ratings from item-parameter-table-pc-v2.json. A handful
+of items share an identical in-game display name (e.g. all 7 AGITO variants);
+see item_labels()/weapon_labels() below for how the GUI disambiguates them.
 
 Each entry: (display_name, stars_or_None, class_byte, variant_byte)
 """
 import json
 import os
+from collections import Counter
 
 GUNS = [
-    ("VARISTA", 9, 0x06, 0x05), ("CUSTOM RAY ver.OO", 9, 0x06, 0x06), ("BRAVACE", 9, 0x06, 0x07),
-    ("M&A60 VISE", 9, 0x08, 0x05), ("H&S25 JUSTICE", 9, 0x08, 0x06), ("L&K14 COMBAT", 9, 0x08, 0x07),
-    ("CRUSH BULLET", 9, 0x09, 0x05), ("METEOR SMASH", 9, 0x09, 0x06), ("FINAL IMPACT", 9, 0x09, 0x07),
-    ("VISK-235W", 9, 0x07, 0x05), ("WALS-MK2", 9, 0x07, 0x06), ("JUSTY-23ST", 9, 0x07, 0x07),
-    ("SPREAD NEEDLE", 11, 0x12, 0x00), ("HOLY RAY", 11, 0x13, 0x00), ("INFERNO BAZOOKA", 11, 0x14, 0x00),
-    ("FLAME VISIT", 11, 0x15, 0x00), ("C-BRINGER'S RIFLE", 12, 0x1b, 0x00), ("EGG BLASTER", 10, 0x1c, 0x00),
-    ("HEAVEN PUNISHER", 12, 0x1e, 0x00), ("SUPPRESSED GUN", 9, 0x26, 0x00),
-    ("HANDGUN:GULD", 12, 0x42, 0x00), ("HANDGUN:MILLA", 12, 0x43, 0x00), ("RED HANDGUN", 9, 0x44, 0x00),
-    ("FROZEN SHOOTER", 11, 0x45, 0x00), ("ANTI ANDROID RIFLE", 11, 0x46, 0x00), ("TWIN PSYCHOGUN", 11, 0x49, 0x00),
-    ("DRILL LAUNCHER", 11, 0x4a, 0x00), ("GULD MILLA", 12, 0x4b, 0x00), ("RED MECHGUN", 9, 0x4c, 0x00),
-    ("BERLA CANNON", 12, 0x4d, 0x00), ("PANZER FAUST", 12, 0x4e, 0x00),
-    ("YASMINKOV 3000R", 10, 0x65, 0x00), ("ANO RIFLE", 12, 0x66, 0x00), ("YASMINKOV 2000H", 10, 0x6a, 0x00),
-    ("YASMINKOV 7000V", 11, 0x6b, 0x00), ("YASMINKOV 9200M", 10, 0x6c, 0x00), ("MASER BEAM", 12, 0x6d, 0x00),
+    ("Handgun", 0, 0x6, 0x0), ("Autogun", 1, 0x6, 0x1), ("Lockgun", 2, 0x6, 0x2),
+    ("Railgun", 3, 0x6, 0x3), ("Raygun", 4, 0x6, 0x4), ("VARISTA", 9, 0x6, 0x5),
+    ("CUSTOM RAY ver.OO", 9, 0x6, 0x6), ("BRAVACE", 9, 0x6, 0x7),
+    ("Rifle", 1, 0x7, 0x0), ("Sniper", 2, 0x7, 0x1), ("Blaster", 3, 0x7, 0x2),
+    ("Beam", 4, 0x7, 0x3), ("Laser", 5, 0x7, 0x4), ("VISK-235W", 9, 0x7, 0x5),
+    ("WALS-MK2", 9, 0x7, 0x6), ("JUSTY-23ST", 9, 0x7, 0x7),
+    ("Mechgun", 1, 0x8, 0x0), ("Assault", 2, 0x8, 0x1), ("Repeater", 3, 0x8, 0x2),
+    ("Gatling", 4, 0x8, 0x3), ("Vulcan", 5, 0x8, 0x4), ("M&A60 VISE", 9, 0x8, 0x5),
+    ("H&S25 JUSTICE", 9, 0x8, 0x6), ("L&K14 COMBAT", 9, 0x8, 0x7),
+    ("Shot", 1, 0x9, 0x0), ("Spread", 2, 0x9, 0x1), ("Cannon", 3, 0x9, 0x2),
+    ("Launcher", 4, 0x9, 0x3), ("Arms", 5, 0x9, 0x4), ("CRUSH BULLET", 9, 0x9, 0x5),
+    ("METEOR SMASH", 9, 0x9, 0x6), ("FINAL IMPACT", 9, 0x9, 0x7),
+    ("SPREAD NEEDLE", 11, 0x12, 0x0), ("HOLY RAY", 11, 0x13, 0x0), ("INFERNO BAZOOKA", 11, 0x14, 0x0),
+    ("FLAME VISIT", 11, 0x15, 0x0), ("C-BRINGER'S RIFLE", 12, 0x1b, 0x0), ("EGG BLASTER", 10, 0x1c, 0x0),
+    ("HEAVEN PUNISHER", 12, 0x1e, 0x0), ("SUPPRESSED GUN", 9, 0x26, 0x0),
+    ("HANDGUN:GULD", 12, 0x42, 0x0), ("HANDGUN:MILLA", 12, 0x43, 0x0), ("RED HANDGUN", 9, 0x44, 0x0),
+    ("FROZEN SHOOTER", 11, 0x45, 0x0), ("ANTI ANDROID RIFLE", 11, 0x46, 0x0), ("ROCKET PUNCH", 12, 0x47, 0x0),
+    ("SAMBA MARACAS", 11, 0x48, 0x0), ("TWIN PSYCHOGUN", 11, 0x49, 0x0),
+    ("DRILL LAUNCHER", 11, 0x4a, 0x0), ("GULD MILLA", 12, 0x4b, 0x0), ("RED MECHGUN", 9, 0x4c, 0x0),
+    ("BERLA CANNON", 12, 0x4d, 0x0), ("PANZER FAUST", 12, 0x4e, 0x0),
+    ("YASMINKOV 3000R", 10, 0x65, 0x0), ("ANO RIFLE", 12, 0x66, 0x0), ("BARANZ LAUNCHER", 12, 0x67, 0x0),
+    ("YASMINKOV 2000H", 10, 0x6a, 0x0),
+    ("YASMINKOV 7000V", 11, 0x6b, 0x0), ("YASMINKOV 9200M", 10, 0x6c, 0x0), ("MASER BEAM", 12, 0x6d, 0x0),
 ]
 GUN_SRANK = [(0x75, "S-RANK GUN"), (0x76, "S-RANK RIFLE"), (0x77, "S-RANK MECHGUN"),
              (0x78, "S-RANK SHOT"), (0x7e, "S-RANK BAZOOKA"), (0x7f, "S-RANK NEEDLE"),
              (0x83, "S-RANK PSYCHOGUN")]
 
 SWORDS = [
-    ("DB'S SABER", 9, 0x01, 0x05), ("KALADBOLG", 9, 0x01, 0x06), ("DURANDAL", 9, 0x01, 0x07),
-    ("FLOWEN'S SWORD", 9, 0x02, 0x05), ("LAST SURVIVOR", 9, 0x02, 0x06), ("DRAGON SLAYER", 9, 0x02, 0x07),
-    ("BLADE DANCE", 9, 0x03, 0x05), ("BLOODY ART", 9, 0x03, 0x06), ("CROSS SCAR", 9, 0x03, 0x07),
-    ("BRIONAC", 9, 0x04, 0x05), ("VJAYA", 9, 0x04, 0x06), ("GAE BOLG", 9, 0x04, 0x07),
-    ("SLICER OF ASSASSIN", 9, 0x05, 0x05), ("DISKA OF LIBERATOR", 9, 0x05, 0x06), ("DISKA OF BRAVEMAN", 9, 0x05, 0x07),
-    ("PHOTON CLAW", 9, 0x0d, 0x00), ("SILENCE CLAW", 10, 0x0d, 0x01), ("NEI'S CLAW", 10, 0x0d, 0x02),
-    ("DOUBLE SABER", 9, 0x0e, 0x00), ("STAG CUTLERY", 10, 0x0e, 0x01), ("TWIN BRAND", 11, 0x0e, 0x02),
-    ("OROTIAGITO", 12, 0x10, 0x00), ("AGITO (AUW 1975)", 10, 0x10, 0x01), ("AGITO (AUW 1983)", 9, 0x10, 0x02),
-    ("AGITO (AUW 2001)", 9, 0x10, 0x03), ("AGITO (AUW 1991)", 9, 0x10, 0x04), ("AGITO (AUW 1977)", 9, 0x10, 0x05),
-    ("AGITO (AUW 1980)", 9, 0x10, 0x06),
-    ("SOUL EATER", 10, 0x11, 0x00), ("SOUL BANISH", 11, 0x11, 0x01),
-    ("AKIKO'S FRYING PAN", 10, 0x16, 0x00), ("S-BEAT'S BLADE", 11, 0x18, 0x00), ("P-ARMS'S BLADE", 11, 0x19, 0x00),
-    ("DELSABER'S BUSTER", 11, 0x1a, 0x00), ("VICTOR AXE", 9, 0x20, 0x00), ("CHAIN SAWD", 11, 0x21, 0x00),
-    ("STING TIP", 10, 0x23, 0x00), ("LAVIS CANNON", 12, 0x1f, 0x00), ("ANCIENT SABER", 10, 0x27, 0x00),
-    ("HARISEN BATTLE FAN", 11, 0x28, 0x00), ("YAMIGARASU", 12, 0x29, 0x00), ("AKIKO'S WOK", 11, 0x2a, 0x00),
-    ("TOY HAMMER", 11, 0x2b, 0x00), ("ELYSION", 11, 0x2c, 0x00), ("RED SABER", 9, 0x2d, 0x00),
-    ("METEOR CUDGEL", 10, 0x2e, 0x00), ("MONKEY KING BAR", 12, 0x2f, 0x00), ("DOUBLE CANNON", 12, 0x30, 0x00),
-    ("HUGE BATTLE FAN", 12, 0x31, 0x00), ("TSUMIKIRI J-SWORD", 12, 0x32, 0x00), ("SEALED J-SWORD", 10, 0x33, 0x00),
-    ("RED SWORD", 9, 0x34, 0x00), ("CRAZY TUNE", 11, 0x35, 0x00), ("TWIN CHAKRAM", 10, 0x36, 0x00),
-    ("WOK OF AKIKO'S SHOP", 11, 0x37, 0x00), ("LAVIS BLADE", 12, 0x38, 0x00), ("RED DAGGER", 9, 0x39, 0x00),
-    ("MADAM'S PARASOL", 12, 0x3a, 0x00), ("MADAM'S UMBRELLA", 11, 0x3b, 0x00), ("IMPERIAL PICK", 10, 0x3c, 0x00),
-    ("BERDYSH", 12, 0x3d, 0x00), ("RED PARTISAN", 9, 0x3e, 0x00), ("FLIGHT CUTTER", 12, 0x3f, 0x00),
-    ("FLIGHT FAN", 11, 0x40, 0x00), ("RED SLICER", 9, 0x41, 0x00), ("TWIN BLAZE", 12, 0x5e, 0x00),
-    ("DRAGON'S CLAW", 11, 0x60, 0x00), ("PANTHER'S CLAW", 11, 0x61, 0x00), ("S-RED'S BLADE", 12, 0x62, 0x00),
-    ("PLANTAIN HUGE FAN", 12, 0x63, 0x00), ("CHAMELEON SCYTHE", 11, 0x64, 0x00), ("HEART OF POUMN", 12, 0x69, 0x00),
-    ("FLOWER BOUQUET", 9, 0x6f, 0x00),
+    ("Saber", 0, 0x1, 0x0), ("Brand", 1, 0x1, 0x1), ("Buster", 2, 0x1, 0x2), ("Pallasch", 3, 0x1, 0x3),
+    ("Gladius", 4, 0x1, 0x4), ("DB'S SABER", 9, 0x1, 0x5), ("KALADBOLG", 9, 0x1, 0x6), ("DURANDAL", 9, 0x1, 0x7),
+    ("Sword", 1, 0x2, 0x0), ("Gigush", 2, 0x2, 0x1), ("Breaker", 3, 0x2, 0x2), ("Claymore", 4, 0x2, 0x3),
+    ("Calibur", 5, 0x2, 0x4), ("FLOWEN'S SWORD", 9, 0x2, 0x5), ("LAST SURVIVOR", 9, 0x2, 0x6), ("DRAGON SLAYER", 9, 0x2, 0x7),
+    ("Dagger", 1, 0x3, 0x0), ("Knife", 2, 0x3, 0x1), ("Blade", 3, 0x3, 0x2), ("Edge", 4, 0x3, 0x3),
+    ("Ripper", 5, 0x3, 0x4), ("BLADE DANCE", 9, 0x3, 0x5), ("BLOODY ART", 9, 0x3, 0x6), ("CROSS SCAR", 9, 0x3, 0x7),
+    ("Partisan", 1, 0x4, 0x0), ("Halbert", 2, 0x4, 0x1), ("Glaive", 3, 0x4, 0x2), ("Berdys", 4, 0x4, 0x3),
+    ("Gungnir", 5, 0x4, 0x4), ("BRIONAC", 9, 0x4, 0x5), ("VJAYA", 9, 0x4, 0x6), ("GAE BOLG", 9, 0x4, 0x7),
+    ("Slicer", 1, 0x5, 0x0), ("Spinner", 2, 0x5, 0x1), ("Cutter", 3, 0x5, 0x2), ("Sawcer", 4, 0x5, 0x3),
+    ("Diska", 5, 0x5, 0x4), ("SLICER OF ASSASSIN", 9, 0x5, 0x5), ("DISKA OF LIBERATOR", 9, 0x5, 0x6), ("DISKA OF BRAVEMAN", 9, 0x5, 0x7),
+    ("PHOTON CLAW", 9, 0xd, 0x0), ("SILENCE CLAW", 10, 0xd, 0x1), ("NEI'S CLAW", 10, 0xd, 0x2),
+    ("DOUBLE SABER", 9, 0xe, 0x0), ("STAG CUTLERY", 10, 0xe, 0x1), ("TWIN BRAND", 11, 0xe, 0x2),
+    ("BRAVE KNUCKLE", 9, 0xf, 0x0), ("ANGRY FIST", 10, 0xf, 0x1), ("GOD HAND", 11, 0xf, 0x2), ("SONIC KNUCKLE", 10, 0xf, 0x3),
+    ("OROTIAGITO", 12, 0x10, 0x0), ("AGITO", 10, 0x10, 0x1), ("AGITO", 9, 0x10, 0x2),
+    ("AGITO", 9, 0x10, 0x3), ("AGITO", 9, 0x10, 0x4), ("AGITO", 9, 0x10, 0x5),
+    ("AGITO", 9, 0x10, 0x6),
+    ("SOUL EATER", 10, 0x11, 0x0), ("SOUL BANISH", 11, 0x11, 0x1),
+    ("AKIKO'S FRYING PAN", 10, 0x16, 0x0), ("S-BEAT'S BLADE", 11, 0x18, 0x0), ("P-ARMS'S BLADE", 11, 0x19, 0x0),
+    ("DELSABER'S BUSTER", 11, 0x1a, 0x0), ("LAVIS CANNON", 12, 0x1f, 0x0), ("VICTOR AXE", 9, 0x20, 0x0), ("CHAIN SAWD", 11, 0x21, 0x0),
+    ("STING TIP", 10, 0x23, 0x0), ("ANCIENT SABER", 10, 0x27, 0x0),
+    ("HARISEN BATTLE FAN", 11, 0x28, 0x0), ("YAMIGARASU", 12, 0x29, 0x0), ("AKIKO'S WOK", 11, 0x2a, 0x0),
+    ("TOY HAMMER", 11, 0x2b, 0x0), ("ELYSION", 11, 0x2c, 0x0), ("RED SABER", 9, 0x2d, 0x0),
+    ("METEOR CUDGEL", 10, 0x2e, 0x0), ("MONKEY KING BAR", 12, 0x2f, 0x0), ("DOUBLE CANNON", 12, 0x30, 0x0),
+    ("HUGE BATTLE FAN", 12, 0x31, 0x0), ("TSUMIKIRI J-SWORD", 12, 0x32, 0x0), ("SEALED J-SWORD", 10, 0x33, 0x0),
+    ("RED SWORD", 9, 0x34, 0x0), ("CRAZY TUNE", 11, 0x35, 0x0), ("TWIN CHAKRAM", 10, 0x36, 0x0),
+    ("WOK OF AKIKO'S SHOP", 11, 0x37, 0x0), ("LAVIS BLADE", 12, 0x38, 0x0), ("RED DAGGER", 9, 0x39, 0x0),
+    ("MADAM'S PARASOL", 12, 0x3a, 0x0), ("MADAM'S UMBRELLA", 11, 0x3b, 0x0), ("IMPERIAL PICK", 10, 0x3c, 0x0),
+    ("BERDYSH", 12, 0x3d, 0x0), ("RED PARTISAN", 9, 0x3e, 0x0), ("FLIGHT CUTTER", 12, 0x3f, 0x0),
+    ("FLIGHT FAN", 11, 0x40, 0x0), ("RED SLICER", 9, 0x41, 0x0), ("TWIN BLAZE", 12, 0x5e, 0x0),
+    ("DRAGON'S CLAW", 11, 0x60, 0x0), ("PANTHER'S CLAW", 11, 0x61, 0x0), ("S-RED'S BLADE", 12, 0x62, 0x0),
+    ("PLANTAIN HUGE FAN", 12, 0x63, 0x0), ("CHAMELEON SCYTHE", 11, 0x64, 0x0), ("HEART OF POUMN", 12, 0x69, 0x0),
+    ("FLOWER BOUQUET", 9, 0x6f, 0x0),
 ]
 SWORD_SRANK = [(0x70, "SSABER"), (0x71, "SSWORD"), (0x72, "SBLADE"), (0x73, "SPARTISN"),
                (0x74, "SSLICER"), (0x7c, "STWIN"), (0x7d, "SCLAW"), (0x80, "SSCYTHE"),
                (0x81, "SHAMMER"), (0x86, "SHARISEN"), (0x87, "SJBLADE"), (0x88, "SJCUTTER")]
 
 WANDS = [
-    ("CLUB OF LACONIUM", 9, 0x0a, 0x04), ("MACE OF ADAMAN", 9, 0x0a, 0x05), ("CLUB OF ZUMIURAN", 9, 0x0a, 0x06),
-    ("BATTLE VERGE", 9, 0x0b, 0x04), ("BRAVE HAMMER", 9, 0x0b, 0x05), ("ALIVE AQHU", 9, 0x0b, 0x06),
-    ("FIRE SCEPTER:AGNI", 9, 0x0c, 0x04), ("ICE STAFF:DAGON", 9, 0x0c, 0x05), ("STORM WAND:INDRA", 9, 0x0c, 0x06),
-    ("C-SORCERER'S CANE", 11, 0x17, 0x00), ("CADUCEUS", 11, 0x22, 0x00), ("MAGICAL PIECE", 11, 0x24, 0x00),
-    ("TECHNICAL CROZIER", 10, 0x25, 0x00), ("PSYCHO WAND", 12, 0x1d, 0x00), ("SUMMIT MOON", 11, 0x4f, 0x00),
-    ("WINDMILL", 12, 0x50, 0x00), ("EVIL CURST", 12, 0x51, 0x00), ("FLOWER CANE", 11, 0x52, 0x00),
-    ("HILDEBEAR'S CANE", 10, 0x53, 0x00), ("HILDEBLUE'S CANE", 12, 0x54, 0x00), ("RABBIT WAND", 12, 0x55, 0x00),
-    ("PLANTAIN LEAF", 10, 0x56, 0x00), ("DEMONIC FORK", 11, 0x57, 0x00), ("STIRKER OF CHAO", 12, 0x58, 0x00),
-    ("BROOM", 10, 0x59, 0x00), ("PROPHETS OF MOTAV", 12, 0x5a, 0x00), ("THE SIGH OF A GOD", 11, 0x5b, 0x00),
-    ("TWINKLE STAR", 11, 0x5c, 0x00), ("PLANTAIN FAN", 11, 0x5d, 0x00), ("MARINA'S BAG", 11, 0x5f, 0x00),
-    ("BRANCH OF PAKUPAKU", 9, 0x68, 0x00), ("GAME MAGAZNE", 11, 0x6e, 0x00),
+    ("Cane", 0, 0xa, 0x0), ("Stick", 1, 0xa, 0x1), ("Mace", 2, 0xa, 0x2), ("Club", 3, 0xa, 0x3),
+    ("CLUB OF LACONIUM", 9, 0xa, 0x4), ("MACE OF ADAMAN", 9, 0xa, 0x5), ("CLUB OF ZUMIURAN", 9, 0xa, 0x6),
+    ("Rod", 1, 0xb, 0x0), ("Pole", 2, 0xb, 0x1), ("Pillar", 3, 0xb, 0x2), ("Striker", 4, 0xb, 0x3),
+    ("BATTLE VERGE", 9, 0xb, 0x4), ("BRAVE HAMMER", 9, 0xb, 0x5), ("ALIVE AQHU", 9, 0xb, 0x6),
+    ("Wand", 1, 0xc, 0x0), ("Staff", 2, 0xc, 0x1), ("Baton", 3, 0xc, 0x2), ("Scepter", 4, 0xc, 0x3),
+    ("FIRE SCEPTER:AGNI", 9, 0xc, 0x4), ("ICE STAFF:DAGON", 9, 0xc, 0x5), ("STORM WAND:INDRA", 9, 0xc, 0x6),
+    ("C-SORCERER'S CANE", 11, 0x17, 0x0), ("PSYCHO WAND", 12, 0x1d, 0x0), ("CADUCEUS", 11, 0x22, 0x0), ("MAGICAL PIECE", 11, 0x24, 0x0),
+    ("TECHNICAL CROZIER", 10, 0x25, 0x0), ("SUMMIT MOON", 11, 0x4f, 0x0),
+    ("WINDMILL", 12, 0x50, 0x0), ("EVIL CURST", 12, 0x51, 0x0), ("FLOWER CANE", 11, 0x52, 0x0),
+    ("HILDEBEAR'S CANE", 10, 0x53, 0x0), ("HILDEBLUE'S CANE", 12, 0x54, 0x0), ("RABBIT WAND", 12, 0x55, 0x0),
+    ("PLANTAIN LEAF", 10, 0x56, 0x0), ("DEMONIC FORK", 11, 0x57, 0x0), ("STRIKER OF CHAO", 12, 0x58, 0x0),
+    ("BROOM", 10, 0x59, 0x0), ("PROPHETS OF MOTAV", 12, 0x5a, 0x0), ("THE SIGH OF A GOD", 11, 0x5b, 0x0),
+    ("TWINKLE STAR", 11, 0x5c, 0x0), ("PLANTAIN FAN", 11, 0x5d, 0x0), ("MARINA'S BAG", 11, 0x5f, 0x0),
+    ("BRANCH OF PAKUPAKU", 9, 0x68, 0x0), ("GAME MAGAZNE", 11, 0x6e, 0x0),
 ]
 WAND_SRANK = [(0x79, "SCANE"), (0x7a, "SROD"), (0x7b, "SWAND"), (0x82, "SMOON"), (0x85, "SWINDMIL")]
 
 # Armor: (name, stars, variant, max_dfp_bonus, max_evp_bonus)
 ARMOR = [
+    ("Frame", 0, 0x0, 2, 2), ("Armor", 0, 0x1, 2, 2), ("Psy Armor", 1, 0x2, 3, 2), ("Giga Frame", 1, 0x3, 4, 2),
+    ("Soul Frame", 2, 0x4, 4, 2), ("Cross Armor", 2, 0x5, 4, 2), ("Solid Frame", 3, 0x6, 4, 2), ("Brave Armor", 3, 0x7, 4, 2),
+    ("Hyper Frame", 4, 0x8, 4, 2), ("Grand Armor", 4, 0x9, 4, 2), ("Shock Frame", 5, 0xa, 4, 2), ("King's Frame", 5, 0xb, 4, 2),
+    ("Dragon Frame", 6, 0xc, 4, 2), ("Absorb Armor", 6, 0xd, 4, 2), ("Protect Frame", 7, 0xe, 4, 2), ("General Armor", 7, 0xf, 4, 2),
+    ("Perfect Frame", 7, 0x10, 4, 2), ("Valiant Frame", 7, 0x11, 4, 2), ("Imperial Armor", 8, 0x12, 4, 2), ("Holiness Armor", 8, 0x13, 4, 2),
     ("Guardian Armor", 9, 0x14, 4, 2), ("Divinity Armor", 10, 0x15, 4, 2), ("Ultimate Frame", 11, 0x16, 4, 2),
     ("Celestial Armor", 12, 0x17, 10, 10), ("HUNTER FIELD", 10, 0x18, 8, 8), ("RANGER FIELD", 10, 0x19, 8, 8),
     ("FORCE FIELD", 10, 0x1a, 8, 8), ("REVIVAL GARMENT", 11, 0x1b, 5, 10), ("SPIRIT GARMENT", 12, 0x1c, 7, 5),
@@ -91,13 +124,18 @@ ARMOR = [
 
 # Shields: (name, stars, variant, max_dfp_bonus, max_evp_bonus)
 SHIELDS = [
+    ("Barrier", 0, 0x0, 5, 5), ("Shield", 0, 0x1, 5, 5), ("Core Shield", 1, 0x2, 5, 5), ("Giga Shield", 2, 0x3, 5, 5),
+    ("Soul Barrier", 3, 0x4, 5, 5), ("Hard Shield", 3, 0x5, 5, 5), ("Brave Barrier", 4, 0x6, 5, 5), ("Solid Shield", 4, 0x7, 5, 5),
+    ("Flame Barrier", 5, 0x8, 5, 5), ("Plasma Barrier", 5, 0x9, 5, 5), ("Freeze Barrier", 5, 0xa, 5, 5), ("Psychic Barrier", 6, 0xb, 5, 5),
+    ("General Shield", 6, 0xc, 5, 5), ("Protect Barrier", 7, 0xd, 5, 5), ("Glorious Shield", 7, 0xe, 5, 5), ("Imperial Barrier", 8, 0xf, 5, 5),
+    ("Guardian Shield", 8, 0x10, 5, 5),
     ("Divinity Barrier", 9, 0x11, 5, 5), ("Ultimate Shield", 10, 0x12, 5, 5), ("Spiritual Shield", 11, 0x13, 5, 5),
     ("Celestial Shield", 12, 0x14, 5, 5), ("INVISIBLE GUARD", 9, 0x15, 8, 8), ("SACRED GUARD", 11, 0x16, 8, 8),
     ("S-PARTS ver1.16", 10, 0x17, 8, 8), ("S-PARTS ver2.01", 11, 0x18, 7, 7), ("LIGHT RELIEF", 9, 0x19, 7, 7),
     ("SHIELD OF DELSABER", 12, 0x1a, 7, 7), ("FORCE WALL", 11, 0x1b, 10, 10), ("RANGER WALL", 11, 0x1c, 10, 10),
     ("HUNTER WALL", 11, 0x1d, 10, 10), ("ATTRIBUTE WALL", 11, 0x1e, 10, 10), ("SECRET GEAR", 11, 0x1f, 10, 10),
     ("COMBAT GEAR", 11, 0x20, 0, 0), ("PROTO REGENE GEAR", 10, 0x21, 7, 7), ("REGENERATE GEAR", 11, 0x22, 7, 7),
-    ("REGENE GEAR ADV", 12, 0x23, 7, 7), ("FLOWEN'S SHIELD", 10, 0x24, 10, 10), ("CUSTOM BARRIER ver.OO", 10, 0x25, 10, 10),
+    ("REGENE GEAR ADV.", 12, 0x23, 7, 7), ("FLOWEN'S SHIELD", 10, 0x24, 10, 10), ("CUSTOM BARRIER ver.OO", 10, 0x25, 10, 10),
     ("DB'S SHIELD", 10, 0x26, 10, 10), ("RED RING", 12, 0x27, 85, 25), ("TRIPOLIC SHIELD", 10, 0x28, 50, 15),
     ("STANDSTILL SHIELD", 11, 0x29, 50, 15), ("SAFETY HEART", 11, 0x2a, 50, 15), ("KASAMI BRACER", 12, 0x2b, 50, 15),
     ("GODS SHIELD SUZAKU", 11, 0x2c, 50, 15), ("GODS SHIELD GENBU", 11, 0x2d, 50, 15), ("GODS SHIELD BYAKKO", 11, 0x2e, 50, 15),
@@ -109,15 +147,27 @@ SHIELDS = [
 
 # Units: (name, stars, variant, base_stat_amount, modifier_amount) -- legit max modifier is +2
 UNITS = [
-    ("God/Power", 11, 0x03, 25, 2), ("God/Mind", 11, 0x07, 25, 3), ("God/Arm", 11, 0x0b, 15, 1),
-    ("Elf/Legs", 9, 0x0e, 30, 2), ("God/Legs", 11, 0x0f, 40, 2), ("God/HP", 11, 0x13, 40, 2),
-    ("God/TP", 11, 0x17, 20, 1), ("Metal/Body", 9, 0x1a, 30, 2), ("God/Body", 11, 0x1b, 40, 2),
-    ("Hero/Ability", 9, 0x1f, 15, 1), ("God/Ability", 11, 0x20, 20, 1), ("Resist/Burning", 10, 0x23, 11, 1),
-    ("Resist/Blizzard", 9, 0x26, 11, 1), ("Resist/Storm", 10, 0x29, 11, 1), ("Resist/Holy", 11, 0x2c, 11, 1),
-    ("Resist/Devil", 10, 0x2f, 11, 1), ("Super/Resist", 9, 0x31, 7, 1), ("Perfect/Resist", 11, 0x32, 11, 1),
-    ("HP/Revival", 11, 0x35, 8, 0), ("TP/Revival", 12, 0x38, 11, 0), ("PB/Generate", 9, 0x3a, 35, 0),
-    ("PB/Create", 11, 0x3b, 23, 0), ("Devil/Technique", 10, 0x3d, 2, 0), ("God/Technique", 12, 0x3e, 3, 0),
-    ("Devil/Battle", 9, 0x40, 10, 0), ("God/Battle", 11, 0x41, 20, 0),
+    ("Knight/Power", 2, 0x0, 5, 1), ("General/Power", 5, 0x1, 10, 1), ("Ogre/Power", 8, 0x2, 15, 1), ("God/Power", 11, 0x3, 25, 2),
+    ("Priest/Mind", 2, 0x4, 5, 1), ("General/Mind", 5, 0x5, 10, 1), ("Angel/Mind", 8, 0x6, 15, 1), ("God/Mind", 11, 0x7, 25, 3),
+    ("Marksman/Arm", 2, 0x8, 3, 1), ("General/Arm", 5, 0x9, 7, 1), ("Elf/Arm", 8, 0xa, 11, 1), ("God/Arm", 11, 0xb, 15, 1),
+    ("Thief/Legs", 3, 0xc, 10, 2), ("General/Legs", 6, 0xd, 20, 2), ("Elf/Legs", 9, 0xe, 30, 2), ("God/Legs", 11, 0xf, 40, 2),
+    ("Digger/HP", 2, 0x10, 10, 2), ("General/HP", 5, 0x11, 20, 2), ("Dragon/HP", 8, 0x12, 30, 2), ("God/HP", 11, 0x13, 40, 2),
+    ("Magician/TP", 2, 0x14, 5, 1), ("General/TP", 5, 0x15, 10, 1), ("Angel/TP", 8, 0x16, 15, 1), ("God/TP", 11, 0x17, 20, 1),
+    ("Warrior/Body", 3, 0x18, 10, 2), ("General/Body", 6, 0x19, 20, 2), ("Metal/Body", 9, 0x1a, 30, 2), ("God/Body", 11, 0x1b, 40, 2),
+    ("Angel/Luck", 4, 0x1c, 5, 1), ("God/Luck", 8, 0x1d, 10, 1),
+    ("Master/Ability", 5, 0x1e, 10, 1), ("Hero/Ability", 9, 0x1f, 15, 1), ("God/Ability", 11, 0x20, 20, 1),
+    ("Resist/Fire", 2, 0x21, 3, 1), ("Resist/Flame", 6, 0x22, 7, 1), ("Resist/Burning", 10, 0x23, 11, 1),
+    ("Resist/Cold", 2, 0x24, 3, 1), ("Resist/Freeze", 5, 0x25, 7, 1), ("Resist/Blizzard", 9, 0x26, 11, 1),
+    ("Resist/Shock", 2, 0x27, 3, 1), ("Resist/Thunder", 6, 0x28, 7, 1), ("Resist/Storm", 10, 0x29, 11, 1),
+    ("Resist/Light", 3, 0x2a, 3, 1), ("Resist/Saint", 7, 0x2b, 7, 1), ("Resist/Holy", 11, 0x2c, 11, 1),
+    ("Resist/Dark", 4, 0x2d, 3, 1), ("Resist/Evil", 7, 0x2e, 7, 1), ("Resist/Devil", 10, 0x2f, 11, 1),
+    ("All/Resist", 7, 0x30, 3, 1), ("Super/Resist", 9, 0x31, 7, 1), ("Perfect/Resist", 11, 0x32, 11, 1),
+    ("HP/Restorate", 4, 0x33, 14, 0), ("HP/Generate", 7, 0x34, 11, 0), ("HP/Revival", 11, 0x35, 8, 0),
+    ("TP/Restorate", 5, 0x36, 15, 0), ("TP/Generate", 8, 0x37, 13, 0), ("TP/Revival", 12, 0x38, 11, 0),
+    ("PB/Amplifier", 5, 0x39, 40, 0), ("PB/Generate", 9, 0x3a, 35, 0), ("PB/Create", 11, 0x3b, 23, 0),
+    ("Wizard/Technique", 8, 0x3c, 1, 0), ("Devil/Technique", 10, 0x3d, 2, 0), ("God/Technique", 12, 0x3e, 3, 0),
+    ("General/Battle", 7, 0x3f, 5, 0), ("Devil/Battle", 9, 0x40, 10, 0), ("God/Battle", 11, 0x41, 20, 0),
+    ("State/Maintenance", 6, 0x42, 0, 0), ("Trap/Search", 7, 0x43, 0, 0),
 ]
 
 # Mag species names by ID (sourced from amon-x.github.io/psoitems v2.json, cross-checked
@@ -270,6 +320,34 @@ CLASS_USABILITY_BITS = {
 }
 
 
+def _disambiguate_labels(labels):
+    """Append a [i/n] tag to any label that repeats in the list -- the full catalog
+    has several items that share a display name (e.g. all 7 AGITO variants render
+    with the identical string "AGITO" in the client's own text table), and callers
+    resolve a chosen label back to a row via list.index(), which would otherwise
+    always resolve to the first matching row and make the others unpickable."""
+    counts = Counter(labels)
+    seen = Counter()
+    out = []
+    for label in labels:
+        if counts[label] > 1:
+            seen[label] += 1
+            out.append(f"{label} [{seen[label]}/{counts[label]}]")
+        else:
+            out.append(label)
+    return out
+
+
+def weapon_labels(rows):
+    """Display labels for a GUNS/SWORDS/WANDS-shaped list, in the same order."""
+    return _disambiguate_labels([f"{n} ({s}*)" for n, s, c, v in rows])
+
+
+def item_labels(rows):
+    """Display labels for an ARMOR/SHIELDS/UNITS-shaped list, in the same order."""
+    return _disambiguate_labels([f"{n} ({s}*)" for n, s, v, *_rest in rows])
+
+
 def usability_flags_text(flags):
     """Human-readable list of who can use an item, e.g. 'Ranger, Human/Android/Newman'."""
     if flags is None:
@@ -295,7 +373,11 @@ def check_equip(char_class_idx, item_category, item_class, item_variant=0):
     entry = PMT_BY_CATEGORY_CLASS_VARIANT.get((item_category, item_class, item_variant))
     if entry is None:
         return False, "Not a real V2 item (no entry in the client's item table) -- will not work in-game."
-    flags = entry["UsabilityFlags"]
+    flags = entry.get("UsabilityFlags")
+    if flags is None:
+        # Units have no class/race/gender restriction on-disk (the real UnitT
+        # struct has no usability_flags field at all) -- usable by everyone.
+        return True, "Usable by: everyone"
     char_bits = CLASS_USABILITY_BITS.get(char_class_idx)
     usable_text = usability_flags_text(flags)
     if char_bits is not None and (flags & char_bits) != char_bits:

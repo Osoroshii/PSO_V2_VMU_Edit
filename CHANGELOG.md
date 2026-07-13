@@ -6,15 +6,41 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- GitHub Actions CI (`.github/workflows/ci.yml`): runs on every push/PR across
-  macOS, Windows, and Ubuntu, on Python 3.11 and 3.13.
+- **Full V2 item catalog** for Guns/Swords/Wands/Armor/Shields/Units, replacing the
+  previous hand-curated "8-star+/9-star+" subsets -- 60 guns, 102 swords (including
+  a whole Knuckle category that was previously missing entirely: BRAVE KNUCKLE/ANGRY
+  FIST/GOD HAND/SONIC KNUCKLE), 44 wands, 53 armors, 58 shields, and 68 units, every
+  one down to the plain 0-star basics (Saber, Handgun, Frame, Barrier, Knight/Power,
+  etc.). Built by extracting this disc's own `ITEMPMT.PRS` straight out of a real GD-ROM
+  `.cdi` image (new CDI-parsing + PRS-decompression code, not shipped as part of the
+  app -- see `docs/REFERENCE.md` section 10 for the full pipeline) and cross-checking
+  its structure/counts against newserv's `item-parameter-table-pc-v2.json` and
+  `names-v2.json` before generating the lists from the latter two. Also found and
+  fixed several small inaccuracies in the old curated names ("STIRKER OF CHAO" ->
+  "STRIKER OF CHAO", "REGENE GEAR ADV" -> "REGENE GEAR ADV.") and found 3 real V2
+  weapons the curated list had missed (ROCKET PUNCH, SAMBA MARACAS, BARANZ LAUNCHER).
+- `item_database.weapon_labels()`/`item_labels()`: shared label-list helpers that
+  disambiguate items sharing an identical in-game display name (e.g. all 7 AGITO
+  variants render as plain "AGITO" in the client's own text table) with a `[i/n]`
+  suffix. `main.py`'s six weapon/armor/unit dropdown call sites now go through these
+  instead of rebuilding an ad-hoc label list inline, which would otherwise make every
+  same-named item after the first permanently unselectable (`list.index()` on a
+  colliding label always resolves to the first match).
 - `tests/` pytest suite (25 tests): encryption round-trip, encode/decode
   round-trip for every item category (including all 46 Parts and 31 Tools
   entries), and level-sync math (with and without preserved Material bonus).
   Synthetic data only, no real save files bundled. `requirements-dev.txt`
   added for `pytest`.
+- GitHub Actions CI (`.github/workflows/ci.yml`): runs on every push/PR across
+  macOS, Windows, and Ubuntu, on Python 3.11 and 3.13.
 
 ### Fixed
+- `item_database.check_equip()` crashed with a `TypeError` on every Unit item --
+  the bundled reduced PMT data has `"UsabilityFlags": null` for units (they have no
+  such field in the real on-disk struct at all), and the code indexed into it
+  unconditionally. This meant the Unit tab's "who can use this" equip-check label
+  has been crashing since it was added, in every prior release. Now treats a missing
+  usability flag as "usable by everyone."
 - `build_srank_weapon`'s `special_index` hardcoding (confirmed broken via real
   gameplay, see 0.2.0 below) only lived at the GUI call site -- any other
   caller could have silently reintroduced a broken item. Now enforced inside

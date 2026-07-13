@@ -256,7 +256,8 @@ class AddItemDialog(tk.Toplevel):
     def _build_weapon_body(self, normal_list, srank_list):
         self._weapon_normal_list = normal_list
         self._weapon_srank_list = srank_list
-        names = [f"{n} ({s}*)" for n, s, c, v in normal_list] + [f"[S-Rank] {n}" for c, n in srank_list]
+        self._weapon_labels = db.weapon_labels(normal_list)
+        names = self._weapon_labels + [f"[S-Rank] {n}" for c, n in srank_list]
 
         existing = self._existing if self._existing and self._existing["kind"] == "weapon" else None
         default_choice = names[0]
@@ -266,10 +267,10 @@ class AddItemDialog(tk.Toplevel):
                 if srank_name:
                     default_choice = f"[S-Rank] {srank_name}"
             else:
-                match = next((f"{n} ({s}*)" for n, s, c, v in normal_list
-                              if c == existing["class"] and v == existing["variant"]), None)
-                if match:
-                    default_choice = match
+                idx = next((i for i, (n, s, c, v) in enumerate(normal_list)
+                            if c == existing["class"] and v == existing["variant"]), None)
+                if idx is not None:
+                    default_choice = self._weapon_labels[idx]
 
         tk.Label(self.body_frame, text="Item:").grid(row=0, column=0, sticky="w")
         self.weapon_choice = tk.StringVar(value=default_choice)
@@ -324,7 +325,7 @@ class AddItemDialog(tk.Toplevel):
             name_lookup = choice[len("[S-Rank] "):]
             wclass = next(c for c, n in self._weapon_srank_list if n == name_lookup)
             return wclass, 0
-        idx = [f"{n} ({s}*)" for n, s, c, v in self._weapon_normal_list].index(choice)
+        idx = self._weapon_labels.index(choice)
         _, _, wclass, wvariant = self._weapon_normal_list[idx]
         return wclass, wvariant
 
@@ -352,7 +353,7 @@ class AddItemDialog(tk.Toplevel):
             # value here breaks the item (see label above / reference doc).
             return items.build_srank_weapon(wclass, typed_name, 0, grind)
         else:
-            idx = [f"{n} ({s}*)" for n, s, c, v in self._weapon_normal_list].index(choice)
+            idx = self._weapon_labels.index(choice)
             name, stars, wclass, wvariant = self._weapon_normal_list[idx]
             attr_pairs = []
             for type_var, val_var in self.attr_vars:
@@ -366,15 +367,16 @@ class AddItemDialog(tk.Toplevel):
     def _build_armor_shield_body(self, item_list, is_shield):
         self._as_list = item_list
         self._as_is_shield = is_shield
-        names = [f"{n} ({s}*)" for n, s, v, d, e in item_list]
+        self._as_labels = db.item_labels(item_list)
+        names = self._as_labels
 
         want_kind = "shield" if is_shield else "armor"
         existing = self._existing if self._existing and self._existing["kind"] == want_kind else None
         default_choice = names[0]
         if existing:
-            match = next((f"{n} ({s}*)" for n, s, v, d, e in item_list if v == existing["variant"]), None)
-            if match:
-                default_choice = match
+            idx = next((i for i, (n, s, v, d, e) in enumerate(item_list) if v == existing["variant"]), None)
+            if idx is not None:
+                default_choice = self._as_labels[idx]
 
         tk.Label(self.body_frame, text="Item:").grid(row=0, column=0, sticky="w")
         self.as_choice = tk.StringVar(value=default_choice)
@@ -405,8 +407,7 @@ class AddItemDialog(tk.Toplevel):
         self._update_as_equip_label()
 
     def _fill_as_defaults(self):
-        names = [f"{n} ({s}*)" for n, s, v, d, e in self._as_list]
-        idx = names.index(self.as_choice.get())
+        idx = self._as_labels.index(self.as_choice.get())
         _, _, _, max_dfp, max_evp = self._as_list[idx]
         self.as_dfp_var.set(max_dfp)
         self.as_evp_var.set(max_evp)
@@ -416,29 +417,29 @@ class AddItemDialog(tk.Toplevel):
         self._update_as_equip_label()
 
     def _update_as_equip_label(self):
-        names = [f"{n} ({s}*)" for n, s, v, d, e in self._as_list]
-        idx = names.index(self.as_choice.get())
+        idx = self._as_labels.index(self.as_choice.get())
         _, _, variant, _, _ = self._as_list[idx]
         kind_byte = 0x02 if self._as_is_shield else 0x01
         ok, msg = db.check_equip(self.char_class_idx, 1, kind_byte, variant)
         self.equip_label.config(text=msg, fg="black" if ok else "red")
 
     def _confirm_armor_shield(self):
-        names = [f"{n} ({s}*)" for n, s, v, d, e in self._as_list]
-        idx = names.index(self.as_choice.get())
+        idx = self._as_labels.index(self.as_choice.get())
         _, _, variant, _, _ = self._as_list[idx]
         return items.build_armor_or_shield(self._as_is_shield, variant, self.as_dfp_var.get(),
                                             self.as_evp_var.get(), self.as_slots_var.get())
 
     # ---- Unit ----
     def _build_unit_body(self):
-        names = [f"{n} ({s}*)" for n, s, v, base, modamt in db.UNITS]
+        self._unit_labels = db.item_labels(db.UNITS)
+        names = self._unit_labels
         existing = self._existing if self._existing and self._existing["kind"] == "unit" else None
         default_choice = names[0]
         if existing:
-            match = next((f"{n} ({s}*)" for n, s, v, base, modamt in db.UNITS if v == existing["variant"]), None)
-            if match:
-                default_choice = match
+            idx = next((i for i, (n, s, v, base, modamt) in enumerate(db.UNITS)
+                        if v == existing["variant"]), None)
+            if idx is not None:
+                default_choice = self._unit_labels[idx]
 
         tk.Label(self.body_frame, text="Item:").grid(row=0, column=0, sticky="w")
         self.unit_choice = tk.StringVar(value=default_choice)
@@ -455,15 +456,13 @@ class AddItemDialog(tk.Toplevel):
         self._update_unit_equip_label()
 
     def _update_unit_equip_label(self):
-        names = [f"{n} ({s}*)" for n, s, v, base, modamt in db.UNITS]
-        idx = names.index(self.unit_choice.get())
+        idx = self._unit_labels.index(self.unit_choice.get())
         _, _, variant, _, _ = db.UNITS[idx]
         ok, msg = db.check_equip(self.char_class_idx, 1, 0x03, variant)
         self.equip_label.config(text=msg, fg="black" if ok else "red")
 
     def _confirm_unit(self):
-        names = [f"{n} ({s}*)" for n, s, v, base, modamt in db.UNITS]
-        idx = names.index(self.unit_choice.get())
+        idx = self._unit_labels.index(self.unit_choice.get())
         _, _, variant, base, modamt = db.UNITS[idx]
         modifier = self.unit_modifier_var.get() if modamt > 0 else 0
         return items.build_unit(variant, modifier)
