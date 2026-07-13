@@ -8,6 +8,12 @@ source.include_exts = py,png,jpg,kv,atlas,json
 # psovmu/ is a symlink to ../psovmu (the shared core logic with the desktop
 # app) -- buildozer/python-for-android follows symlinks when copying source,
 # so nothing extra is needed here to bundle it.
+# venv/ (this repo's own dev virtualenv) must NOT be swept into the packaged
+# app -- confirmed the hard way: without this exclusion, buildozer tries to
+# copy venv/bin/python3, which is a symlink to the host's Homebrew Python
+# binary, and crashes with FileNotFoundError once it's off the mounted volume
+# (it's also just the wrong OS/arch entirely -- p4a builds its own Python).
+source.exclude_dirs = venv,.buildozer,.buildozer-global,bin,__pycache__
 
 icon.filename = %(source.dir)s/icon.png
 

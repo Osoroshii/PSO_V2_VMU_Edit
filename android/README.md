@@ -5,14 +5,14 @@ built with [Kivy](https://kivy.org) so it can be packaged as a real Android APK.
 `psovmu/` in this directory is a symlink to `../psovmu` -- there's only one copy
 of the crypto/character/item logic, shared by both UIs.
 
-**Status**: feature-complete parity with the desktop app. Folder picker with
-persisted folder+serial and a name/class/level preview; a character editor
-(level/EXP/meseta/stats/quest-flags); and Bank/Inventory item editing for all
-10 categories (Guns/Swords/Wands incl. S-rank, Armor, Shields, Units, Mags,
-Technique Disks, Parts, Tools), including the same equip-check warning and
-existing-item pre-fill the desktop app has. Not yet done: an actual APK build
-(see below -- needs Docker) and on-device testing (plyer's Android backend is
-unverified until then).
+**Status**: feature-complete parity with the desktop app, and the APK builds
+successfully. Folder picker with persisted folder+serial and a name/class/
+level preview; a character editor (level/EXP/meseta/stats/quest-flags); and
+Bank/Inventory item editing for all 10 categories (Guns/Swords/Wands incl.
+S-rank, Armor, Shields, Units, Mags, Technique Disks, Parts, Tools), including
+the same equip-check warning and existing-item pre-fill the desktop app has.
+Not yet done: installing it on a real device (plyer's Android folder-picker
+backend is unverified until then -- see [INSTALL.md](INSTALL.md)).
 
 ## Running on desktop (do this first)
 
@@ -40,18 +40,12 @@ real device. Short version below.
 Uses [Buildozer](https://buildozer.readthedocs.io) (`buildozer.spec` is already
 set up in this directory). **Buildozer's Android target is unreliable on
 macOS** -- the officially recommended, actually-reproducible way to build is
-their Docker image, regardless of host OS:
-
-```
-docker run --rm -v "$PWD":/home/user/hostcwd kivy/buildozer android debug
-```
-
-The first build downloads the Android SDK/NDK (several GB) and will take a
-while. The resulting APK lands in `bin/`. Without Docker, `pip install
-buildozer` and `buildozer android debug` natively is possible on Linux and
-*might* work on macOS with the Homebrew deps Buildozer's docs list
-(`autoconf`, `automake`, `libtool`, `pkg-config`, `ccache`), but expect to hit
-version-pinning issues Docker sidesteps entirely.
+their Docker image, regardless of host OS. On Apple Silicon specifically, the
+naive `docker run --rm -v "$PWD":/home/user/hostcwd kivy/buildozer android
+debug` command from Buildozer's own docs does **not** work as-is -- see
+[INSTALL.md](INSTALL.md)'s "Build gotchas" section for the working command
+and why each extra flag/mount is there (confirmed by actually producing a
+working APK, not just in theory). The resulting APK lands in `bin/`.
 
 ## Notes for whoever picks this up next
 

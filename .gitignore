@@ -3,6 +3,12 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# Android build artifacts/caches (android/.buildozer/ alone runs several GB;
+# android/bin/ holds the built .apk) -- never belongs in the repo, rebuild
+# locally via the Docker command in android/INSTALL.md instead.
+.buildozer/
+bin/
+
 # Personal save files, backups, and per-user config -- never belongs in the repo
 *.bin
 *.bin.bak
