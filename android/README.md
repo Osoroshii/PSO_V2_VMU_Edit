@@ -5,13 +5,14 @@ built with [Kivy](https://kivy.org) so it can be packaged as a real Android APK.
 `psovmu/` in this directory is a symlink to `../psovmu` -- there's only one copy
 of the crypto/character/item logic, shared by both UIs.
 
-**Status**: folder picker + character editor. Remembers a VMU folder + serial
-number, scans that folder for every `.bin` file with a real PSO character in
-it, and shows "CharacterName (Class, LvNN)" instead of raw filenames. Tapping
-one opens an editor for level/EXP/meseta/stats/quest-flags (mirroring the
-desktop app's Character tab) with a working Save that round-trip-verifies and
-backs up before writing, same as the desktop app. **Not ported yet: Bank/
-Inventory item editing** -- that's the next milestone.
+**Status**: feature-complete parity with the desktop app. Folder picker with
+persisted folder+serial and a name/class/level preview; a character editor
+(level/EXP/meseta/stats/quest-flags); and Bank/Inventory item editing for all
+10 categories (Guns/Swords/Wands incl. S-rank, Armor, Shields, Units, Mags,
+Technique Disks, Parts, Tools), including the same equip-check warning and
+existing-item pre-fill the desktop app has. Not yet done: an actual APK build
+(see below -- needs Docker) and on-device testing (plyer's Android backend is
+unverified until then).
 
 ## Running on desktop (do this first)
 
@@ -51,6 +52,23 @@ version-pinning issues Docker sidesteps entirely.
 
 ## Notes for whoever picks this up next
 
+- `item_screens.py` (`ItemListScreen` + `ItemPickerScreen`) is the Bank/
+  Inventory equivalent of the desktop app's `_build_item_tab`/`AddItemDialog`
+  in `../main.py` -- same category dispatch, same field layouts per category,
+  same equip-check-then-confirm-anyway flow. `ItemPickerScreen._rebuild_body`
+  resets the equip-check label before dispatching to the category builder --
+  only weapon/armor/shield/unit builders set it themselves, so without the
+  reset, switching from e.g. Guns to Mags left the old "Usable by: ..." text
+  on screen for a category that has no equip check at all. Caught by an actual
+  screenshot, not the headless widget-dispatch tests (which only asserted on
+  data, not on what was left visually on screen) -- worth taking at least one
+  real screenshot per new screen for exactly this reason.
+- Comparing a Kivy widget's `.color` property against a plain tuple with `==`
+  is unreliable (Kivy stores it as a list internally, and `[1,2] == (1,2)` is
+  `False` in Python) -- `ItemPickerScreen` tracks equippability with an
+  explicit `self._equip_ok` boolean instead of re-deriving it from the label's
+  color, after that comparison silently always returned "not equippable"
+  during testing.
 - `session.py`'s `CharacterSession` is the one place that loads/decrypts and
   re-encrypts/verifies/saves a character file -- ported directly from the
   desktop app's `App._load_path`/`_save` in `../main.py`. Both the folder

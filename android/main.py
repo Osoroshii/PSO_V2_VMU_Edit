@@ -1,10 +1,11 @@
 """PSO VMU Editor -- Android/touch UI.
 
-Two screens: a picker (remembers a VMU folder + serial number, scans that
+Four screens: a picker (remembers a VMU folder + serial number, scans that
 folder for real characters and shows name/class/level instead of cryptic
-filenames) and an editor (level/EXP/meseta/stats/quest-flags for the selected
-character, mirroring the desktop app's Character tab -- Bank/Inventory item
-editing isn't ported yet, that's the next milestone).
+filenames), a character editor (level/EXP/meseta/stats/quest-flags, mirroring
+the desktop app's Character tab), and Bank/Inventory item editing
+(item_screens.py -- ItemListScreen + ItemPickerScreen, mirroring the desktop
+app's item tabs and AddItemDialog).
 
 Runs identically on the desktop during development (`python main.py`, from
 this directory, with android/venv active) -- Kivy apps are meant to be built
@@ -30,6 +31,7 @@ import vmu_scan
 from psovmu import character as ch
 from psovmu import crypto
 from session import CharacterSession
+from item_screens import ItemListScreen, ItemPickerScreen
 
 try:
     from plyer import filechooser
@@ -225,11 +227,24 @@ class EditorScreen(Screen):
         self.status_label = Label(text="", size_hint=(1, None), height=48)
         root.add_widget(self.status_label)
 
+        item_row = BoxLayout(size_hint=(1, None), height=52, spacing=8)
+        self.bank_btn = Button(text="Bank")
+        self.bank_btn.bind(on_release=lambda *_: self._open_items(is_bank=True))
+        self.inventory_btn = Button(text="Inventory")
+        self.inventory_btn.bind(on_release=lambda *_: self._open_items(is_bank=False))
+        item_row.add_widget(self.bank_btn)
+        item_row.add_widget(self.inventory_btn)
+        root.add_widget(item_row)
+
         save_btn = Button(text="Save", size_hint=(1, None), height=56, bold=True)
         save_btn.bind(on_release=lambda *_: self._save())
         root.add_widget(save_btn)
 
         root.add_widget(BoxLayout())  # spacer so short content doesn't stretch oddly
+
+    def on_pre_enter(self, *args):
+        if self.session is not None:
+            self._update_item_buttons()  # reflect any items added/cleared since last shown
 
     def load_session(self, session):
         self.session = session
@@ -245,6 +260,17 @@ class EditorScreen(Screen):
         for k in STAT_KEYS:
             self.stat_inputs[k].text = str(stats[k])
         self._update_status()
+        self._update_item_buttons()
+
+    def _update_item_buttons(self):
+        dec = self.session.dec
+        self.bank_btn.text = f"Bank ({ch.get_bank_count(dec)}/{ch.BANK_CAPACITY})"
+        self.inventory_btn.text = f"Inventory ({ch.get_inventory_count(dec)}/{ch.INVENTORY_CAPACITY})"
+
+    def _open_items(self, is_bank):
+        item_screen = self.manager.get_screen("items")
+        item_screen.open_for(self.session, is_bank)
+        self.manager.current = "items"
 
     def _update_status(self):
         if self.session is None:
@@ -308,6 +334,8 @@ class PSOVMUApp(App):
         sm = ScreenManager()
         sm.add_widget(PickerScreen(name="picker"))
         sm.add_widget(EditorScreen(name="editor"))
+        sm.add_widget(ItemListScreen(name="items"))
+        sm.add_widget(ItemPickerScreen(name="item_picker"))
         sm.current = "picker"
         return sm
 
