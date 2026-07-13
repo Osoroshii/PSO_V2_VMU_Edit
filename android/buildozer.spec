@@ -1,0 +1,31 @@
+[app]
+title = PSO VMU Editor
+package.name = psovmuedit
+package.domain = org.psovmuedit
+
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas,json
+# psovmu/ is a symlink to ../psovmu (the shared core logic with the desktop
+# app) -- buildozer/python-for-android follows symlinks when copying source,
+# so nothing extra is needed here to bundle it.
+
+version = 0.1.0
+
+# plyer's Android filechooser backend needs pyjnius (pulled in automatically);
+# do NOT add pyobjus here -- that's the macOS-only desktop-dev equivalent.
+requirements = python3,kivy==2.3.1,plyer==2.1.0,pyjnius
+
+orientation = portrait
+fullscreen = 0
+
+# Android 13+ (API 33) replaced broad storage permissions with the
+# per-file/tree Storage Access Framework picker plyer's filechooser already
+# uses (ACTION_OPEN_DOCUMENT_TREE) -- no READ/WRITE_EXTERNAL_STORAGE needed.
+android.permissions =
+android.api = 33
+android.minapi = 24
+android.ndk = 25b
+android.archs = arm64-v8a, armeabi-v7a
+
+[buildozer]
+log_level = 2

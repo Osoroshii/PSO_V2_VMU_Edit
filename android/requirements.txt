@@ -1,0 +1,10 @@
+# For running/developing the app on a desktop (macOS/Linux/Windows) via
+# `python main.py` -- see README.md. Android's equivalent of pyobjus (pyjnius)
+# is pulled in automatically by python-for-android during the buildozer build,
+# not from this file.
+kivy[base]==2.3.1
+plyer==2.1.0
+
+# macOS only -- plyer's native NSOpenPanel/NSSavePanel folder picker needs
+# this Objective-C bridge. Not needed (and won't install) on Linux/Windows.
+pyobjus; sys_platform == "darwin"
