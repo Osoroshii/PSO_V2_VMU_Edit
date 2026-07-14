@@ -1,0 +1,3 @@
+# For running android/tests/ -- see README.md's "Running tests" section.
+-r requirements.txt
+pytest

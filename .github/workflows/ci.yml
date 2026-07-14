@@ -39,3 +39,26 @@ jobs:
 
       - name: Run test suite
         run: python -m pytest tests/ -v
+
+  android-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Only exercises the plain-path (desktop) branch of android/fileio.py --
+      # the Android/SAF branch needs pyjnius + a real Activity, which only
+      # exist in a packaged APK (see android/README.md).
+      - name: Install dependencies
+        run: pip install -r android/requirements-dev.txt
+
+      - name: Run android test suite
+        run: python -m pytest android/tests/ -v

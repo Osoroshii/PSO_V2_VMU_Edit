@@ -33,6 +33,12 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   added for `pytest`.
 - GitHub Actions CI (`.github/workflows/ci.yml`): runs on every push/PR across
   macOS, Windows, and Ubuntu, on Python 3.11 and 3.13.
+- `android/tests/` pytest suite (23 tests) covering `session.py`, `vmu_scan.py`,
+  `storage.py`, and `fileio.py`'s desktop branch -- these are pure-Python glue
+  modules (no Kivy widgets) that had zero coverage despite being the actual
+  save/load/scan logic the Android UI drives. Synthetic VMU images only, built
+  with a new `android/tests/vmu_helpers.py`. Added a matching `android-test`
+  CI job (same OS/Python matrix as the main suite).
 
 ### Fixed
 - `item_database.check_equip()` crashed with a `TypeError` on every Unit item --

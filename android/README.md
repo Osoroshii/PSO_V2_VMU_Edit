@@ -17,9 +17,9 @@ widget uses proportional `size_hint` rather than fixed pixel widths --
 confirmed on-device that Kivy's Android density detection can silently fall
 back to a bogus value (`density=0.0` instead of the real `2.25` on the
 Retroid Pocket 5), which broke absolute-pixel layouts (buttons/labels clipped
-off the right edge of the screen) but doesn't affect proportional ones. Not
-yet exercised end-to-end with real VMU files on-device (the folder picker
-opens Android's native SAF UI, which needs a human tapping through it).
+off the right edge of the screen) but doesn't affect proportional ones.
+Confirmed end-to-end on-device: picking a folder on the SD card via the SAF
+picker, editing a character, saving, and verifying the result in-game.
 
 ## Running on desktop (do this first)
 
@@ -38,6 +38,22 @@ On first run, click **Choose VMU Folder** and pick the directory your emulator
 keeps its VMU `.bin` files in (RetroArch/Flycast/etc. usually put them all in
 one folder), then enter your disc/account serial number and click
 **Save + Rescan**. Both are remembered for next time.
+
+## Running tests
+
+`session.py`, `vmu_scan.py`, `storage.py`, and `fileio.py` (the app's
+non-Kivy-widget glue code) have a pytest suite under `tests/`, run the same
+way as the repo root's `tests/` suite:
+
+```
+cd android
+pip install -r requirements-dev.txt
+python -m pytest tests/ -v
+```
+
+Only `fileio.py`'s desktop (plain-path) branch is covered -- its Android/SAF
+branch needs `pyjnius` and a real `Activity`, which only exist inside a
+packaged APK on an actual device, not in a desktop test run.
 
 ## Building an actual APK
 
