@@ -58,12 +58,16 @@ python -m pytest tests/ -v
 Constructing any real Kivy widget lazily creates an actual SDL2 window/GL
 context on first use, so this needs a real (or virtual, e.g. `xvfb-run` on
 headless Linux) display -- see the `android-test` CI job in
-`.github/workflows/ci.yml` for the Ubuntu-specific Xvfb setup. Where no
-display is available at all (confirmed on GitHub's macOS-hosted runners --
-they have no logged-in GUI session, and Kivy's SDL2 backend has no headless
-fallback), `conftest.py` detects this up front (in an isolated subprocess --
-see `_detect_kivy_window_support`'s docstring for why in-process detection
-isn't safe) and the widget-dependent tests skip cleanly instead of erroring.
+`.github/workflows/ci.yml` for the Ubuntu-specific Xvfb setup. Where a
+display isn't reliably available, `conftest.py`'s `_detect_kivy_window_support`
+skips the widget-dependent tests instead of erroring or hanging: GitHub's
+macOS-hosted runners have no logged-in GUI session at all (Kivy's SDL2
+backend has no headless fallback there), and its Windows-hosted runners *can*
+open a real window but were observed to hang doing so in a way a
+`subprocess`-level timeout didn't reliably bound -- so CI skips outright on
+both rather than gamble on a timeout. A real Windows or macOS developer
+machine (the `CI` env var unset) still gets these tests for real, since
+neither failure mode was observed outside CI.
 
 Only `fileio.py`'s Android/SAF branch is untested -- it needs `pyjnius` and a
 real `Activity`, which only exist inside a packaged APK on an actual device,

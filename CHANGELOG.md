@@ -48,9 +48,12 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   `android-test` CI job (same OS/Python matrix as the main suite; Ubuntu runs
   it under `xvfb-run` since constructing a real Kivy widget lazily opens an
   SDL2 window). GitHub's macOS-hosted runners have no display at all and no
-  headless fallback -- `conftest.py` detects this in an isolated subprocess
-  (in-process detection corrupted pytest's own fixture-teardown state) and
-  skips the widget-dependent tests there instead of erroring.
+  headless fallback; its Windows-hosted runners can open a real window but
+  were observed hanging while doing so in a way a subprocess-level timeout
+  didn't reliably bound. `conftest.py`'s `_detect_kivy_window_support` skips
+  the widget-dependent tests outright under CI on both, rather than gamble on
+  a timeout -- a real Windows/macOS developer machine still runs them for
+  real, since neither failure mode was observed outside CI.
 
 ### Fixed
 - `PickerScreen.rescan()` (`android/main.py`) had no error handling around

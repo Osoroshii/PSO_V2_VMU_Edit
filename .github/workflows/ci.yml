@@ -58,24 +58,27 @@ jobs:
 
       # Constructing any real Kivy widget (Label, Button, ...) lazily creates
       # an actual SDL2 window/GL context on first use. Ubuntu runners have no
-      # display server at all, so this needs a virtual one (Xvfb). macOS
-      # runners have no display either and no headless fallback -- handled by
-      # android/tests/conftest.py skipping the real-widget tests there (see
-      # its _detect_kivy_window_support). Windows runners can open a real
-      # window, but doing so from a bare script with no message pump has been
-      # observed to hang rather than fail cleanly -- the 15-minute job
-      # timeout above and the probe's own internal timeout both guard against
-      # that turning into an indefinitely stuck CI run.
+      # display server at all, so this needs a virtual one (Xvfb) -- this is
+      # the only CI platform where main.py/item_screens.py's real widget tree
+      # actually gets constructed and driven. macOS and Windows runners are
+      # both unusable for this in CI (macOS has no display and no headless
+      # fallback; Windows can open a real window, but doing so was observed
+      # to hang rather than fail cleanly), so android/tests/conftest.py skips
+      # those tests outright there (see _detect_kivy_window_support) rather
+      # than gambling on a timeout -- a real Windows/macOS developer machine
+      # still gets them, since neither failure mode was observed outside CI.
+      # timeout-minutes above is a backstop against a *future* unrelated
+      # hang, not the primary defense for this one.
       - name: Install Xvfb (Ubuntu only)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
 
-      # Only fileio.py's Android/SAF branch is left untested -- it needs
-      # pyjnius + a real Activity, which only exist in a packaged APK (see
-      # android/README.md). Everything else here, including main.py/
-      # item_screens.py's real widget tree, runs for real.
+      # main.py/item_screens.py's real widget tree only runs for real on
+      # Linux (see above); fileio.py's Android/SAF branch is untested
+      # everywhere -- it needs pyjnius + a real Activity, which only exist in
+      # a packaged APK (see android/README.md).
       - name: Install dependencies
         run: pip install -r android/requirements-dev.txt
 
