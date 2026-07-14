@@ -54,11 +54,27 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Only exercises the plain-path (desktop) branch of android/fileio.py --
-      # the Android/SAF branch needs pyjnius + a real Activity, which only
-      # exist in a packaged APK (see android/README.md).
+      # Constructing any real Kivy widget (Label, Button, ...) lazily creates
+      # an actual SDL2 window/GL context on first use -- Ubuntu runners have
+      # no display server at all, so this needs a virtual one (Xvfb).
+      # macOS/Windows runners already have an interactive desktop session.
+      - name: Install Xvfb (Ubuntu only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      # Only fileio.py's Android/SAF branch is left untested -- it needs
+      # pyjnius + a real Activity, which only exist in a packaged APK (see
+      # android/README.md). Everything else here, including main.py/
+      # item_screens.py's real widget tree, runs for real.
       - name: Install dependencies
         run: pip install -r android/requirements-dev.txt
 
+      - name: Run android test suite (Linux, via Xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m pytest android/tests/ -v
+
       - name: Run android test suite
+        if: runner.os != 'Linux'
         run: python -m pytest android/tests/ -v

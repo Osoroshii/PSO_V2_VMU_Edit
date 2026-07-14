@@ -133,7 +133,15 @@ class PickerScreen(Screen):
             self.status_label.text = "Enter a serial number to decrypt character names."
             return
         serial = int(serial_text, 16)
-        results = vmu_scan.scan_folder(folder, serial)
+        try:
+            results = vmu_scan.scan_folder(folder, serial)
+        except Exception as e:
+            # Folder access can go stale between sessions (SAF permission
+            # revoked, SD card removed, folder deleted) -- rescan() runs
+            # unconditionally on every return to this screen (on_pre_enter),
+            # so this must degrade to a status message, not raise.
+            self.status_label.text = f"Can't read that folder anymore ({e}). Choose it again."
+            return
         if not results:
             self.status_label.text = "No .bin files found in that folder."
             return

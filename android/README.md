@@ -41,9 +41,13 @@ one folder), then enter your disc/account serial number and click
 
 ## Running tests
 
-`session.py`, `vmu_scan.py`, `storage.py`, and `fileio.py` (the app's
-non-Kivy-widget glue code) have a pytest suite under `tests/`, run the same
-way as the repo root's `tests/` suite:
+`tests/` has a pytest suite covering both the non-Kivy glue code
+(`session.py`, `vmu_scan.py`, `storage.py`, `fileio.py`'s desktop branch) and
+the real screens (`main.py`'s `PickerScreen`/`EditorScreen`, `item_screens.py`'s
+`ItemListScreen`/`ItemPickerScreen`) -- constructed and driven for real
+(`conftest.py`'s `app_screen_manager` fixture wires them into a `ScreenManager`
+exactly like `PSOVMUApp.build()` does), not mocked. Run the same way as the
+repo root's `tests/` suite:
 
 ```
 cd android
@@ -51,9 +55,14 @@ pip install -r requirements-dev.txt
 python -m pytest tests/ -v
 ```
 
-Only `fileio.py`'s desktop (plain-path) branch is covered -- its Android/SAF
-branch needs `pyjnius` and a real `Activity`, which only exist inside a
-packaged APK on an actual device, not in a desktop test run.
+Constructing any real Kivy widget lazily creates an actual SDL2 window/GL
+context on first use, so this needs a real (or virtual, e.g. `xvfb-run` on
+headless Linux) display -- see the `android-test` CI job in
+`.github/workflows/ci.yml` for the Ubuntu-specific Xvfb setup.
+
+Only `fileio.py`'s Android/SAF branch is untested -- it needs `pyjnius` and a
+real `Activity`, which only exist inside a packaged APK on an actual device,
+not in a desktop test run.
 
 ## Building an actual APK
 

@@ -33,14 +33,30 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   added for `pytest`.
 - GitHub Actions CI (`.github/workflows/ci.yml`): runs on every push/PR across
   macOS, Windows, and Ubuntu, on Python 3.11 and 3.13.
-- `android/tests/` pytest suite (23 tests) covering `session.py`, `vmu_scan.py`,
-  `storage.py`, and `fileio.py`'s desktop branch -- these are pure-Python glue
-  modules (no Kivy widgets) that had zero coverage despite being the actual
-  save/load/scan logic the Android UI drives. Synthetic VMU images only, built
-  with a new `android/tests/vmu_helpers.py`. Added a matching `android-test`
-  CI job (same OS/Python matrix as the main suite).
+- `android/tests/` pytest suite (42 tests): started with `session.py`,
+  `vmu_scan.py`, `storage.py`, and `fileio.py`'s desktop branch (pure-Python
+  glue modules, no Kivy widgets), then extended to the real screens --
+  `main.py`'s `PickerScreen`/`EditorScreen` and `item_screens.py`'s
+  `ItemListScreen`/`ItemPickerScreen` -- constructed and driven for real via a
+  new `app_screen_manager` fixture (a `ScreenManager` wired up exactly like
+  `PSOVMUApp.build()`), not mocked. Includes a regression test for the stale
+  equip-check-label bug documented in `android/README.md`'s "Notes for whoever
+  picks this up next" (switching category left the previous category's
+  "Usable by: ..." text on screen) and a smoke test building/decoding one
+  item from every one of the 10 item categories. Synthetic VMU images
+  only, built with a new `android/tests/vmu_helpers.py`. Added a matching
+  `android-test` CI job (same OS/Python matrix as the main suite; Ubuntu runs
+  it under `xvfb-run` since constructing a real Kivy widget lazily opens an
+  SDL2 window).
 
 ### Fixed
+- `PickerScreen.rescan()` (`android/main.py`) had no error handling around
+  scanning the saved VMU folder, unlike the folder-picker button. `rescan()`
+  runs unconditionally every time this screen is shown (including on app
+  launch, if a folder+serial were already saved), so a folder whose access
+  went stale between sessions -- a revoked SAF permission grant, a removed SD
+  card, a deleted folder -- would crash the app on next open instead of
+  showing an error. Now degrades to a status message.
 - `item_database.check_equip()` crashed with a `TypeError` on every Unit item --
   the bundled reduced PMT data has `"UsabilityFlags": null` for units (they have no
   such field in the real on-disk struct at all), and the code indexed into it
