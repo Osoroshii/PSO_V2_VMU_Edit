@@ -5,6 +5,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-14
+
 ### Added
 - **Full V2 item catalog** for Guns/Swords/Wands/Armor/Shields/Units, replacing the
   previous hand-curated "8-star+/9-star+" subsets -- 60 guns, 102 swords (including
