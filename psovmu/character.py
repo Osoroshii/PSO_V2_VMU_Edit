@@ -76,6 +76,18 @@ def get_section_id(dec):
     return dec[SH_BASE + 0x20]
 
 
+def set_section_id(dec, section_id):
+    """Untested against real gameplay as of this writing -- Section ID is
+    normally chosen once at character creation and (per newserv's client-side
+    logic) determines which drop tables the game consults for this
+    character, so an in-game test is the only way to confirm the client
+    actually respects a value changed after the fact rather than re-deriving
+    or ignoring it (see the level/EXP self-healing gotcha in
+    docs/REFERENCE.md for a precedent of a field the client silently
+    corrected on next load)."""
+    dec[SH_BASE + 0x20] = section_id
+
+
 def get_section_id_name(dec):
     s = get_section_id(dec)
     return SECTION_ID_NAMES[s] if s < len(SECTION_ID_NAMES) else f"?{s}"

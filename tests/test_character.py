@@ -16,6 +16,13 @@ def make_dec():
     return bytearray(BUF_SIZE)
 
 
+def test_section_id_round_trip():
+    dec = make_dec()
+    ch.set_section_id(dec, 6)
+    assert ch.get_section_id(dec) == 6
+    assert ch.get_section_id_name(dec) == "Redria"
+
+
 def test_level_is_stored_zero_indexed():
     dec = make_dec()
     ch.set_displayed_level(dec, 200)
