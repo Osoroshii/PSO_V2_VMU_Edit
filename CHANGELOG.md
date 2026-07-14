@@ -87,8 +87,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   has been crashing since it was added, in every prior release. Now treats a missing
   usability flag as "usable by everyone."
 - `build_srank_weapon`'s `special_index` hardcoding (confirmed broken via real
-  gameplay, see 0.2.0 below) only lived at the GUI call site -- any other
-  caller could have silently reintroduced a broken item. Now enforced inside
+  gameplay, see v0.2.0's release notes) only lived at the GUI call site -- any
+  other caller could have silently reintroduced a broken item. Now enforced inside
   the function itself regardless of what's passed.
 
 ## [0.2.0] - 2026-07-12
