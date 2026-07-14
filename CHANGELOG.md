@@ -45,15 +45,18 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   "Usable by: ..." text on screen) and a smoke test building/decoding one
   item from every one of the 10 item categories. Synthetic VMU images
   only, built with a new `android/tests/vmu_helpers.py`. Added a matching
-  `android-test` CI job (same OS/Python matrix as the main suite; Ubuntu runs
-  it under `xvfb-run` since constructing a real Kivy widget lazily opens an
-  SDL2 window). GitHub's macOS-hosted runners have no display at all and no
-  headless fallback; its Windows-hosted runners can open a real window but
-  were observed hanging while doing so in a way a subprocess-level timeout
-  didn't reliably bound. `conftest.py`'s `_detect_kivy_window_support` skips
-  the widget-dependent tests outright under CI on both, rather than gamble on
-  a timeout -- a real Windows/macOS developer machine still runs them for
-  real, since neither failure mode was observed outside CI.
+  `android-test` CI job (Ubuntu + macOS, Python 3.11/3.13; Ubuntu runs it
+  under `xvfb-run` since constructing a real Kivy widget lazily opens an
+  SDL2 window). No Windows: Kivy's freshly-downloaded DLLs reliably hang the
+  whole job for its full CI timeout on GitHub's Windows-hosted runners,
+  confirmed via job logs to happen before pytest even starts collecting test
+  files (three different fixes attempted and ruled out before concluding
+  this belonged at the workflow level, not in the test code -- see the
+  comment in `.github/workflows/ci.yml`). GitHub's macOS-hosted runners have
+  no display at all and no headless fallback; `conftest.py`'s
+  `_detect_kivy_window_support` skips the widget-dependent tests there
+  instead of erroring -- a real macOS (or Windows) developer machine still
+  runs them for real, since neither failure mode was observed outside CI.
 
 ### Fixed
 - `PickerScreen.rescan()` (`android/main.py`) had no error handling around

@@ -45,7 +45,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # No windows-latest: Kivy's freshly-downloaded DLLs (SDL2, GLEW,
+        # ANGLE) reliably hang this job for the full 15-minute timeout on
+        # GitHub's Windows-hosted runners, every time, regardless of three
+        # different fixes tried (a timeout around the window-creation probe,
+        # then skipping that probe outright) -- confirmed via job logs that
+        # the hang happens between pytest's session-start banner and its
+        # first "collecting ..." line, i.e. before any test file is even
+        # imported, which rules out anything in this repo's own test code.
+        # Most likely cause: Windows Defender's real-time scan blocking the
+        # first load of those large, unsigned, freshly-installed DLLs into
+        # any process on the fresh runner VM (a known slow-CI pattern for
+        # native-dependency-heavy Python packages on GitHub's Windows
+        # runners) -- not confirmed with certainty, since Windows doesn't
+        # surface that scan to stdout and there's no interactive shell on
+        # the runner to inspect it directly. A real Windows developer
+        # machine (already-installed, already-scanned DLLs) doesn't hit
+        # this; only a pristine per-run CI VM does. Not worth further CI
+        # cycles chasing given Linux (via Xvfb, below) already provides real
+        # widget-test coverage; `test` above still covers Windows for
+        # everything that doesn't touch Kivy.
+        os: [ubuntu-latest, macos-latest]
         python-version: ["3.11", "3.13"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
@@ -60,15 +80,12 @@ jobs:
       # an actual SDL2 window/GL context on first use. Ubuntu runners have no
       # display server at all, so this needs a virtual one (Xvfb) -- this is
       # the only CI platform where main.py/item_screens.py's real widget tree
-      # actually gets constructed and driven. macOS and Windows runners are
-      # both unusable for this in CI (macOS has no display and no headless
-      # fallback; Windows can open a real window, but doing so was observed
-      # to hang rather than fail cleanly), so android/tests/conftest.py skips
-      # those tests outright there (see _detect_kivy_window_support) rather
-      # than gambling on a timeout -- a real Windows/macOS developer machine
-      # still gets them, since neither failure mode was observed outside CI.
-      # timeout-minutes above is a backstop against a *future* unrelated
-      # hang, not the primary defense for this one.
+      # actually gets constructed and driven. macOS runners have no display
+      # either and no headless fallback, so android/tests/conftest.py skips
+      # those tests outright there (see _detect_kivy_window_support) -- a
+      # real macOS developer machine still gets them, since that failure mode
+      # wasn't observed outside CI. timeout-minutes above is a backstop
+      # against a future unrelated hang, not the primary defense for this.
       - name: Install Xvfb (Ubuntu only)
         if: runner.os == 'Linux'
         run: |

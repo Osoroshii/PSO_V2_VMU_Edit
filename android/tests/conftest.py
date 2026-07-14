@@ -25,24 +25,14 @@ def _detect_kivy_window_support():
     fixture. Running the probe in a subprocess isolates that sys.exit(1) to a
     throwaway process, so pytest never sees it -- just an exit code.
 
-    GitHub's Windows-hosted runners are a THIRD case, worse than either of the
-    above: unlike no-display macOS (fails fast) or Xvfb-equipped Ubuntu (works
-    cleanly), a Windows runner can open a real window, but doing so hangs
-    instead of returning -- and a subprocess.run(..., timeout=...) around the
-    probe did NOT reliably bound that hang in practice (observed the job still
-    stuck ~5+ minutes past the timeout's own 20s window in two separate CI
-    runs, cancelled both rather than let them run out the job's time limit;
-    most likely explanation is a GUI-spawning child holding stdout/stderr
-    pipes open past its own termination, which blocks subprocess.run's
-    internal communicate() even after the tracked child is killed -- not
-    confirmed with certainty since there's no interactive shell on that
-    runner to inspect it directly). Gambling on a second, longer timeout
-    wasn't worth another possibly-hung CI run to find out -- skip outright
-    under CI on any platform other than Linux (where Xvfb is proven to work),
-    rather than attempt the probe there at all. A real Windows or macOS
-    developer machine (CI env var unset) still gets the accurate probe below,
-    since neither of those failure modes has been observed outside CI."""
-    if os.environ.get("CI") and sys.platform != "linux":
+    (GitHub's Windows-hosted runners hit a different, apparently unrelated
+    problem -- pytest hung for the full CI job timeout before even reaching
+    its first "collecting ..." line, i.e. before this function, or any test
+    file, ever ran. Chased across three attempts here before realizing the
+    real fix belonged in the workflow, not this probe: windows-latest is
+    excluded from the android-test job's matrix entirely -- see the comment
+    in .github/workflows/ci.yml for the fuller story.)"""
+    if os.environ.get("CI") and sys.platform == "darwin":
         return False
     try:
         result = subprocess.run(

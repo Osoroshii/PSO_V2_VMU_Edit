@@ -59,15 +59,21 @@ Constructing any real Kivy widget lazily creates an actual SDL2 window/GL
 context on first use, so this needs a real (or virtual, e.g. `xvfb-run` on
 headless Linux) display -- see the `android-test` CI job in
 `.github/workflows/ci.yml` for the Ubuntu-specific Xvfb setup. Where a
-display isn't reliably available, `conftest.py`'s `_detect_kivy_window_support`
-skips the widget-dependent tests instead of erroring or hanging: GitHub's
-macOS-hosted runners have no logged-in GUI session at all (Kivy's SDL2
-backend has no headless fallback there), and its Windows-hosted runners *can*
-open a real window but were observed to hang doing so in a way a
-`subprocess`-level timeout didn't reliably bound -- so CI skips outright on
-both rather than gamble on a timeout. A real Windows or macOS developer
-machine (the `CI` env var unset) still gets these tests for real, since
-neither failure mode was observed outside CI.
+display isn't available at all, `conftest.py`'s `_detect_kivy_window_support`
+skips the widget-dependent tests instead of erroring: confirmed on GitHub's
+macOS-hosted CI runners specifically, which have no logged-in GUI session
+(Kivy's SDL2 backend has no headless fallback there). A real macOS developer
+machine (the `CI` env var unset) still gets these tests for real, since that
+failure mode wasn't observed outside CI.
+
+`android-test` doesn't run on Windows at all -- not a Kivy/display problem
+this time, but Kivy's freshly-downloaded DLLs (SDL2/GLEW/ANGLE) reliably
+hanging the whole job for its full CI timeout on GitHub's Windows-hosted
+runners, confirmed via job logs to happen before pytest even starts
+collecting test files. See the comment in `.github/workflows/ci.yml` for
+the full story; a real Windows developer machine is unaffected (its DLLs
+are already installed, not freshly downloaded onto a pristine CI VM every
+run) and gets these tests for real too.
 
 Only `fileio.py`'s Android/SAF branch is untested -- it needs `pyjnius` and a
 real `Activity`, which only exist inside a packaged APK on an actual device,
