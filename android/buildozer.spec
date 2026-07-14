@@ -17,7 +17,7 @@ source.exclude_dirs = venv,.buildozer,.buildozer-global,bin,__pycache__
 
 icon.filename = %(source.dir)s/icon.png
 
-version = 0.3.0
+version = 0.3.1
 
 # plyer's Android filechooser backend needs pyjnius (pulled in automatically);
 # do NOT add pyobjus here -- that's the macOS-only desktop-dev equivalent.

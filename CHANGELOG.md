@@ -5,6 +5,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-14
+
 ### Added
 - **Section ID editing** (desktop Character tab and Android editor screen):
   previously read-only in both UIs. Section ID determines which drop tables
