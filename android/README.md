@@ -21,6 +21,11 @@ off the right edge of the screen) but doesn't affect proportional ones.
 Confirmed end-to-end on-device: picking a folder on the SD card via the SAF
 picker, editing a character, saving, and verifying the result in-game.
 
+**Download**: a prebuilt APK is attached to the
+[v0.3.0 release](https://github.com/Osoroshii/PSO_V2_VMU_Edit/releases/tag/v0.3.0)
+if you'd rather skip building it yourself -- see [INSTALL.md](INSTALL.md) for
+how to get it onto a device. To build it from source instead, see below.
+
 ## Running on desktop (do this first)
 
 Kivy apps are meant to be built and iterated on as a normal desktop app before
