@@ -23,12 +23,14 @@ regardless of what OS you're building on). From this `android/` directory,
 needed -- omitting them will fail partway through):
 
 ```
-docker volume create buildozer-android-global   # one-time; persists the SDK/NDK across builds
+docker volume create buildozer-android-global     # one-time; persists the SDK/NDK across builds
+docker volume create buildozer-android-keystore   # one-time; persists the debug signing key across builds
 
 docker run --platform linux/amd64 --rm \
   -v "$PWD":/home/user/hostcwd \
   -v "$(cd .. && pwd)/psovmu":/home/user/psovmu \
   -v buildozer-android-global:/home/user/.buildozer \
+  -v buildozer-android-keystore:/home/user/.android \
   kivy/buildozer android debug
 ```
 
@@ -89,6 +91,19 @@ wrong:
    Python binary, and crashes with `FileNotFoundError` once it's off the
    mounted volume (it's also the wrong OS/arch entirely -- p4a builds and
    bundles its own Python for the target device).
+7. **A fresh debug signing key every build**, unless `/home/user/.android` is
+   also persisted (the `buildozer-android-keystore` volume above). The
+   generated Gradle build (`dists/psovmuedit/templates/build.tmpl.gradle`)
+   only sets an explicit `signingConfig` for *release* builds -- debug builds
+   fall through to the Android Gradle Plugin's own default, which
+   auto-generates `~/.android/debug.keystore` the first time it's needed if
+   one doesn't already exist. Since the container is `--rm` and (without this
+   volume) nothing under `/home/user/.android` survives past that one run,
+   every subsequent build minted a brand new keystore, so every install
+   looked like a different, incompatible app to Android's package manager.
+   Persisting `/home/user/.android` the same way `/home/user/.buildozer` is
+   already persisted fixes it permanently -- see "Updating to a new version"
+   below for what to do about an app already installed from before this fix.
 
 ## 2. Get the APK onto your device
 
@@ -146,15 +161,18 @@ Both the folder and serial are remembered, so this is only needed once.
 
 ## Updating to a new version
 
-Rebuild the APK (step 1) and reinstall -- but a plain `adb install -r
-bin/...-debug.apk` can fail with `INSTALL_FAILED_UPDATE_INCOMPATIBLE:
-... signatures do not match`, since debug builds appear to get a fresh
-signing key each build (the debug keystore isn't persisted across separate
-`docker run` invocations in the setup above). If you hit that, uninstall
-first: `adb uninstall org.psovmuedit.psovmuedit && adb install
-bin/...-debug.apk`. If you're installing manually instead of via `adb`,
-uninstall the old version the same way (long-press the app icon -> Uninstall)
-before installing the new APK.
+Rebuild the APK (step 1) and reinstall with `adb install -r
+bin/...-debug.apk` -- this should just work now that the debug signing key
+persists across builds (the `buildozer-android-keystore` volume in step 1).
+
+If you built an APK from *before* that volume was added, one uninstall is
+still needed to move over: that older APK was signed with a keystore that
+no longer exists (it lived only inside a since-removed container), so
+Android sees the new one as a different, incompatible app.
+`adb uninstall org.psovmuedit.psovmuedit && adb install bin/...-debug.apk`
+(or, installing manually, long-press the app icon -> Uninstall, then install
+the new APK). Every build after that reuses the same persisted keystore, so
+you shouldn't need to do this again.
 
 ## Useful `adb` commands while testing on-device
 
