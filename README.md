@@ -28,6 +28,14 @@ Either platform needs `tkinterdnd2` installed (`pip install -r
 requirements.txt`) for drag-and-drop; without it the app still runs, just with
 a "click to open" file picker instead of a drop target.
 
+## Android
+
+There's also a touch-friendly Android port (built with [Kivy](https://kivy.org),
+sharing this same `psovmu/` core logic) -- grab the prebuilt APK from the
+[v0.3.0 release](https://github.com/Osoroshii/PSO_V2_VMU_Edit/releases/tag/v0.3.0)
+or build it from source; see [android/README.md](android/README.md) and
+[android/INSTALL.md](android/INSTALL.md) for details.
+
 ## Usage
 
 1. Drag a VMU `.bin` file onto the window (or click it to open a file picker).
@@ -68,6 +76,7 @@ psovmu/character.py             Character struct field access, level-table sync 
 psovmu/items.py                 Item byte encoders/decoders for every item type
 psovmu/item_database.py         Curated item lists (names/stats/byte codes)
 psovmu/data/level-table-v1-v2.json   Real per-class level-up stat curves
+android/                        Kivy touch UI (Android + desktop dev) -- see android/README.md
 ```
 
 See [docs/REFERENCE.md](docs/REFERENCE.md) for the deeper technical writeup --
