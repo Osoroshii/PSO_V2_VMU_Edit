@@ -13,6 +13,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.11", "3.13"]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +48,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.11", "3.13"]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -55,9 +57,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       # Constructing any real Kivy widget (Label, Button, ...) lazily creates
-      # an actual SDL2 window/GL context on first use -- Ubuntu runners have
-      # no display server at all, so this needs a virtual one (Xvfb).
-      # macOS/Windows runners already have an interactive desktop session.
+      # an actual SDL2 window/GL context on first use. Ubuntu runners have no
+      # display server at all, so this needs a virtual one (Xvfb). macOS
+      # runners have no display either and no headless fallback -- handled by
+      # android/tests/conftest.py skipping the real-widget tests there (see
+      # its _detect_kivy_window_support). Windows runners can open a real
+      # window, but doing so from a bare script with no message pump has been
+      # observed to hang rather than fail cleanly -- the 15-minute job
+      # timeout above and the probe's own internal timeout both guard against
+      # that turning into an indefinitely stuck CI run.
       - name: Install Xvfb (Ubuntu only)
         if: runner.os == 'Linux'
         run: |

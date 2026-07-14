@@ -23,11 +23,22 @@ def _detect_kivy_window_support():
     (a stale FixtureDef._finalizers list), turning one real failure into a
     cascade of unrelated-looking errors on every later test sharing this
     fixture. Running the probe in a subprocess isolates that sys.exit(1) to a
-    throwaway process, so pytest never sees it -- just an exit code."""
-    result = subprocess.run(
-        [sys.executable, "-c", "from kivy.uix.widget import Widget; Widget()"],
-        capture_output=True,
-    )
+    throwaway process, so pytest never sees it -- just an exit code.
+
+    A hard timeout guards against the opposite failure mode: a runner that
+    *can* open a real window (unlike the no-display macOS case above) but
+    where doing so from a one-line script with no message pump hangs instead
+    of returning -- observed hanging indefinitely on a GitHub Windows-hosted
+    runner. Treat a timeout the same as "no window": skip the real-widget
+    tests rather than let CI hang."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", "from kivy.uix.widget import Widget; Widget()"],
+            capture_output=True,
+            timeout=20,
+        )
+    except subprocess.TimeoutExpired:
+        return False
     return result.returncode == 0
 
 
