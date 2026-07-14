@@ -60,16 +60,17 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 - The Docker/Buildozer APK build (`android/INSTALL.md`) minted a fresh debug
-  signing key on every `docker run`, since only `/home/user/.buildozer` was
-  persisted across the container's `--rm` lifecycle, not `/home/user/.android`
-  (where the Android Gradle Plugin auto-generates `debug.keystore` -- the
-  generated `build.tmpl.gradle` only sets an explicit `signingConfig` for
-  release builds, so debug builds always fell through to that default).
-  Every rebuild-and-reinstall therefore failed with
-  `INSTALL_FAILED_UPDATE_INCOMPATIBLE` unless you `adb uninstall`ed first.
-  Added a second named volume (`buildozer-android-keystore`) for
-  `/home/user/.android`, so the same debug key persists across builds the
-  same way the SDK/NDK cache already did.
+  signing key on every `docker run`, since nothing under `~/.android` (where
+  the Android Gradle Plugin auto-generates `debug.keystore` -- the generated
+  `build.tmpl.gradle` only sets an explicit `signingConfig` for release
+  builds, so debug builds always fell through to that default) was persisted
+  across the container's `--rm` lifecycle. Every rebuild-and-reinstall
+  therefore failed with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` unless you
+  `adb uninstall`ed first. Added a second named volume
+  (`buildozer-android-keystore`) at `/root/.android` -- despite the image's
+  own convention of `/home/user/...` paths for everything else, the container
+  actually runs as root, so `~` there is `/root`; confirmed by running the
+  build twice and diffing `debug.keystore`'s checksum between runs.
 - `PickerScreen.rescan()` (`android/main.py`) had no error handling around
   scanning the saved VMU folder, unlike the folder-picker button. `rescan()`
   runs unconditionally every time this screen is shown (including on app

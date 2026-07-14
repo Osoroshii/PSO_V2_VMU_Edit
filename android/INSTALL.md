@@ -30,7 +30,7 @@ docker run --platform linux/amd64 --rm \
   -v "$PWD":/home/user/hostcwd \
   -v "$(cd .. && pwd)/psovmu":/home/user/psovmu \
   -v buildozer-android-global:/home/user/.buildozer \
-  -v buildozer-android-keystore:/home/user/.android \
+  -v buildozer-android-keystore:/root/.android \
   kivy/buildozer android debug
 ```
 
@@ -91,19 +91,26 @@ wrong:
    Python binary, and crashes with `FileNotFoundError` once it's off the
    mounted volume (it's also the wrong OS/arch entirely -- p4a builds and
    bundles its own Python for the target device).
-7. **A fresh debug signing key every build**, unless `/home/user/.android` is
-   also persisted (the `buildozer-android-keystore` volume above). The
-   generated Gradle build (`dists/psovmuedit/templates/build.tmpl.gradle`)
-   only sets an explicit `signingConfig` for *release* builds -- debug builds
-   fall through to the Android Gradle Plugin's own default, which
-   auto-generates `~/.android/debug.keystore` the first time it's needed if
-   one doesn't already exist. Since the container is `--rm` and (without this
-   volume) nothing under `/home/user/.android` survives past that one run,
-   every subsequent build minted a brand new keystore, so every install
-   looked like a different, incompatible app to Android's package manager.
-   Persisting `/home/user/.android` the same way `/home/user/.buildozer` is
-   already persisted fixes it permanently -- see "Updating to a new version"
-   below for what to do about an app already installed from before this fix.
+7. **A fresh debug signing key every build**, unless `~/.android` is also
+   persisted (the `buildozer-android-keystore` volume above). The generated
+   Gradle build (`dists/psovmuedit/templates/build.tmpl.gradle`) only sets an
+   explicit `signingConfig` for *release* builds -- debug builds fall through
+   to the Android Gradle Plugin's own default, which auto-generates
+   `~/.android/debug.keystore` the first time it's needed if one doesn't
+   already exist. **`~/` here is `/root`, not `/home/user`** -- despite
+   `hostcwd`/`.buildozer`/`psovmu` all living under `/home/user/...` by this
+   image's own convention, `whoami`/`echo $HOME` inside the container both
+   say `root`/`/root` (gotcha #1 above already notes the container runs as
+   root; this is that same fact catching a second, separate thing). Mounting
+   the volume at `/home/user/.android` instead -- the mistake in an earlier
+   version of this doc -- silently does nothing: that path is never read or
+   written by anything, so the real `/root/.android/debug.keystore` still
+   lives only in the container's throwaway layer and still gets regenerated
+   every `--rm` run. Confirmed by running the build twice with the volume at
+   the correct `/root/.android` path and diffing `debug.keystore`'s checksum
+   between runs -- identical both times, versus a volume at the wrong path
+   staying permanently empty. See "Updating to a new version" below for what
+   to do about an app already installed from before this fix.
 
 ## 2. Get the APK onto your device
 
