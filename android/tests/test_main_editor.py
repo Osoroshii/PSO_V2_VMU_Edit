@@ -107,6 +107,32 @@ def test_editor_load_session_populates_fields(app_screen_manager, tmp_path):
     assert editor.bank_btn.text == f"Bank (0/{ch.BANK_CAPACITY})"
 
 
+def test_editor_load_session_populates_section_id(app_screen_manager, tmp_path):
+    path = _write_character(tmp_path)
+    from session import CharacterSession
+    session = CharacterSession.load(path, SERIAL)
+    ch.set_section_id(session.dec, 2)  # Skyly
+
+    editor = _editor(app_screen_manager)
+    editor.load_session(session)
+
+    assert editor.section_spinner.text == "Skyly"
+
+
+def test_editor_apply_fields_commits_section_id(app_screen_manager, tmp_path):
+    path = _write_character(tmp_path)
+    from session import CharacterSession
+    session = CharacterSession.load(path, SERIAL)
+    editor = _editor(app_screen_manager)
+    editor.load_session(session)
+
+    editor.section_spinner.text = "Bluefull"
+    editor._apply_fields()
+
+    assert ch.get_section_id(session.dec) == 3
+    assert ch.get_section_id_name(session.dec) == "Bluefull"
+
+
 def test_editor_apply_fields_commits_into_dec(app_screen_manager, tmp_path):
     path = _write_character(tmp_path)
     from session import CharacterSession

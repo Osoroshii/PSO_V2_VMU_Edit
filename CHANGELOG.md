@@ -5,6 +5,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Section ID editing** (desktop Character tab and Android editor screen):
+  previously read-only in both UIs. Section ID determines which drop tables
+  the game consults for a character, so this lets a player switch to hunt
+  items their original Section ID couldn't find. Confirmed safe via real
+  gameplay before wiring up either GUI: changed a real character's Section
+  ID (Skyly -> Bluefull) via `character.set_section_id`, no crash, and the
+  new value survived an in-game save + reload -- unlike the level/EXP field,
+  the client does not silently re-derive or correct this one.
+
 ## [0.3.0] - 2026-07-14
 
 ### Added

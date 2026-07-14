@@ -970,21 +970,31 @@ class App:
 
         name = ch.get_name(dec)
         class_name = ch.get_class_name(dec)
-        section = ch.get_section_id_name(dec)
-        tk.Label(info, text=f"Name: {name}    Class: {class_name}    Section ID: {section}").grid(
+        tk.Label(info, text=f"Name: {name}    Class: {class_name}").grid(
             row=0, column=0, columnspan=4, sticky="w", padx=6, pady=4)
 
-        tk.Label(info, text="Level:").grid(row=1, column=0, sticky="w", padx=6)
+        # Section ID determines which drop tables the game consults for this
+        # character -- confirmed via real gameplay (changed Skyly -> Bluefull
+        # on a real character, no crash, survived an in-game save + reload)
+        # that the client does not silently re-derive/correct this the way
+        # it does for level/EXP, so editing it is safe and lets a player
+        # switch to hunt items their original Section ID couldn't find.
+        tk.Label(info, text="Section ID:").grid(row=1, column=0, sticky="w", padx=6)
+        self.section_id_var = tk.StringVar(value=ch.get_section_id_name(dec))
+        ttk.Combobox(info, textvariable=self.section_id_var, values=ch.SECTION_ID_NAMES,
+                     state="readonly", width=12).grid(row=1, column=1, sticky="w")
+
+        tk.Label(info, text="Level:").grid(row=2, column=0, sticky="w", padx=6)
         self.level_var = tk.IntVar(value=ch.get_displayed_level(dec))
-        tk.Spinbox(info, from_=1, to=200, textvariable=self.level_var, width=8).grid(row=1, column=1, sticky="w")
+        tk.Spinbox(info, from_=1, to=200, textvariable=self.level_var, width=8).grid(row=2, column=1, sticky="w")
 
-        tk.Label(info, text="EXP:").grid(row=1, column=2, sticky="w", padx=6)
+        tk.Label(info, text="EXP:").grid(row=2, column=2, sticky="w", padx=6)
         self.exp_var = tk.IntVar(value=ch.get_exp(dec))
-        tk.Entry(info, textvariable=self.exp_var, width=14).grid(row=1, column=3, sticky="w")
+        tk.Entry(info, textvariable=self.exp_var, width=14).grid(row=2, column=3, sticky="w")
 
-        tk.Label(info, text="Meseta:").grid(row=2, column=0, sticky="w", padx=6)
+        tk.Label(info, text="Meseta:").grid(row=3, column=0, sticky="w", padx=6)
         self.meseta_var = tk.IntVar(value=ch.get_meseta(dec))
-        tk.Entry(info, textvariable=self.meseta_var, width=14).grid(row=2, column=1, sticky="w")
+        tk.Entry(info, textvariable=self.meseta_var, width=14).grid(row=3, column=1, sticky="w")
 
         stats = ch.get_stats(dec)
         self.stat_vars = {}
@@ -998,7 +1008,7 @@ class App:
 
         actions = tk.LabelFrame(tab, text="Actions")
         actions.pack(fill="x", padx=8, pady=8)
-        tk.Button(actions, text="Apply level/EXP/meseta/stats above",
+        tk.Button(actions, text="Apply Section ID/level/EXP/meseta/stats above",
                   command=self._apply_character_fields).pack(side="left", padx=6, pady=6)
         tk.Button(actions, text="Sync EXP + stats to Level field (preserve Material bonus)",
                   command=self._sync_to_level).pack(side="left", padx=6, pady=6)
@@ -1007,6 +1017,7 @@ class App:
 
     def _commit_character_fields(self):
         dec = self.dec
+        ch.set_section_id(dec, ch.SECTION_ID_NAMES.index(self.section_id_var.get()))
         ch.set_displayed_level(dec, self.level_var.get())
         ch.set_exp(dec, self.exp_var.get())
         ch.set_meseta(dec, self.meseta_var.get())

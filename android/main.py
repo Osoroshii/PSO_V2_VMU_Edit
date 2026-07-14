@@ -24,6 +24,7 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen, ScreenManager
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.spinner import Spinner
 from kivy.uix.textinput import TextInput
 
 import fileio
@@ -189,6 +190,17 @@ class EditorScreen(Screen):
         top_row.add_widget(self.title_label)
         root.add_widget(top_row)
 
+        # Section ID determines which drop tables the game consults for this
+        # character -- confirmed via real gameplay (changed Skyly -> Bluefull
+        # on a real character, no crash, survived an in-game save + reload)
+        # that the client does not silently re-derive/correct this the way
+        # it does for level/EXP, so editing it is safe.
+        section_row = BoxLayout(size_hint=(1, None), height=44, spacing=8)
+        section_row.add_widget(Label(text="Section ID:", size_hint=(0.3, 1)))
+        self.section_spinner = Spinner(text=ch.SECTION_ID_NAMES[0], values=ch.SECTION_ID_NAMES)
+        section_row.add_widget(self.section_spinner)
+        root.add_widget(section_row)
+
         fields = GridLayout(cols=4, size_hint=(1, None), height=44)
         fields.add_widget(Label(text="Level:", size_hint=(0.15, 1)))
         self.level_input = _int_field()
@@ -252,9 +264,8 @@ class EditorScreen(Screen):
         self.session = session
         dec = session.dec
         name = ch.get_name(dec).strip() or "(unnamed)"
-        self.title_label.text = (
-            f"{name}  --  {ch.get_class_name(dec)}, {ch.get_section_id_name(dec)}"
-        )
+        self.title_label.text = f"{name}  --  {ch.get_class_name(dec)}"
+        self.section_spinner.text = ch.get_section_id_name(dec)
         self.level_input.text = str(ch.get_displayed_level(dec))
         self.exp_input.text = str(ch.get_exp(dec))
         self.meseta_input.text = str(ch.get_meseta(dec))
@@ -288,6 +299,7 @@ class EditorScreen(Screen):
 
     def _commit_fields(self):
         dec = self.session.dec
+        ch.set_section_id(dec, ch.SECTION_ID_NAMES.index(self.section_spinner.text))
         ch.set_displayed_level(dec, self._field_int(self.level_input, ch.get_displayed_level(dec)))
         ch.set_exp(dec, self._field_int(self.exp_input, ch.get_exp(dec)))
         ch.set_meseta(dec, self._field_int(self.meseta_input, ch.get_meseta(dec)))

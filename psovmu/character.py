@@ -77,14 +77,14 @@ def get_section_id(dec):
 
 
 def set_section_id(dec, section_id):
-    """Untested against real gameplay as of this writing -- Section ID is
-    normally chosen once at character creation and (per newserv's client-side
-    logic) determines which drop tables the game consults for this
-    character, so an in-game test is the only way to confirm the client
-    actually respects a value changed after the fact rather than re-deriving
-    or ignoring it (see the level/EXP self-healing gotcha in
-    docs/REFERENCE.md for a precedent of a field the client silently
-    corrected on next load)."""
+    """Confirmed via real gameplay (session: changed Skyly -> Bluefull on a
+    real character, loaded it in the actual online game): no crash, and the
+    new Section ID survives an in-game save + reload -- unlike the level/EXP
+    field (see docs/REFERENCE.md), the client does not silently re-derive or
+    correct this value, so a value written here sticks. Since Section ID
+    determines which drop tables the game consults for this character, this
+    lets a player switch to hunt items their original Section ID couldn't
+    find."""
     dec[SH_BASE + 0x20] = section_id
 
 
