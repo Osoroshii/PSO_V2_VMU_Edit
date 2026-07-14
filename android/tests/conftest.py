@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 
 # Make android/ itself importable (session.py, vmu_scan.py, storage.py,
@@ -7,6 +8,30 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
+
+
+def _detect_kivy_window_support():
+    """Constructing any real Kivy widget lazily calls EventLoop.ensure_window(),
+    which calls sys.exit(1) -- not a catchable Exception -- if no window
+    provider can attach to a display. Confirmed on GitHub's macOS-hosted CI
+    runners specifically: unlike Ubuntu (fixable with xvfb-run) and a real
+    developer Mac (has a logged-in GUI session), those runners have no
+    display at all, and Kivy's SDL2 backend has no headless fallback.
+
+    Catching that sys.exit in-process is NOT safe to do inside a fixture --
+    tried it, and it also corrupted pytest's own fixture-teardown bookkeeping
+    (a stale FixtureDef._finalizers list), turning one real failure into a
+    cascade of unrelated-looking errors on every later test sharing this
+    fixture. Running the probe in a subprocess isolates that sys.exit(1) to a
+    throwaway process, so pytest never sees it -- just an exit code."""
+    result = subprocess.run(
+        [sys.executable, "-c", "from kivy.uix.widget import Widget; Widget()"],
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
+_KIVY_WINDOW_AVAILABLE = _detect_kivy_window_support()
 
 
 class _FakeApp:
@@ -27,6 +52,9 @@ def app_screen_manager(tmp_path, monkeypatch):
     uses, wired up exactly like PSOVMUApp.build() in main.py -- so screens
     that call self.manager.get_screen(...)/self.manager.current = ... behave
     the same as they do in the running app."""
+    if not _KIVY_WINDOW_AVAILABLE:
+        pytest.skip("No display available for Kivy to create a Window (needed to construct real widgets)")
+
     import storage
     monkeypatch.setattr(storage.App, "get_running_app", staticmethod(lambda: _FakeApp(tmp_path / "appdata")))
 

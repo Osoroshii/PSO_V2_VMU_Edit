@@ -47,7 +47,10 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
   only, built with a new `android/tests/vmu_helpers.py`. Added a matching
   `android-test` CI job (same OS/Python matrix as the main suite; Ubuntu runs
   it under `xvfb-run` since constructing a real Kivy widget lazily opens an
-  SDL2 window).
+  SDL2 window). GitHub's macOS-hosted runners have no display at all and no
+  headless fallback -- `conftest.py` detects this in an isolated subprocess
+  (in-process detection corrupted pytest's own fixture-teardown state) and
+  skips the widget-dependent tests there instead of erroring.
 
 ### Fixed
 - `PickerScreen.rescan()` (`android/main.py`) had no error handling around
