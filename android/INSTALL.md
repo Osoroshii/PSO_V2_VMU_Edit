@@ -7,12 +7,20 @@ you just want to run it on your computer while developing, see
 **Status**: confirmed installed and running on a real device (Retroid Pocket
 5) -- the app launches, Python/Kivy/SDL2 initialize cleanly (no crash), and
 the picker screen renders correctly (after fixing a real on-device layout bug
--- see README.md's "Notes for whoever picks this up next"). **Not yet
-exercised end-to-end** with a real VMU folder/serial on-device -- the folder
-picker opens Android's native Storage Access Framework UI, which needs a
-human physically tapping through it (can't be driven via `adb`). If that or
-anything past it behaves unexpectedly, see README.md for the most likely
-trouble spots.
+-- see README.md's "Notes for whoever picks this up next"). Also confirmed
+end-to-end on-device in an earlier session: picking a folder on the SD card
+via the SAF picker, editing a character, saving, and verifying the result
+in-game (see README.md).
+
+**v0.3.0** (the [GitHub release](https://github.com/Osoroshii/PSO_V2_VMU_Edit/releases/tag/v0.3.0),
+built via the Docker command below) was installed on the same Retroid Pocket
+5 with `adb install -r` over the prior build -- no uninstall needed, the
+first real confirmation that the debug-keystore persistence fix (gotcha #7
+below) actually holds across a version bump, not just identical rebuilds.
+App launches cleanly and the picker screen renders correctly; the SAF
+folder-picker/edit/save round trip wasn't re-driven with this specific
+build (that step needs a human physically tapping through it, and was last
+confirmed with an earlier build -- see above).
 
 ## 1. Build the APK
 
@@ -40,7 +48,7 @@ harmless to leave in. The first run downloads the Android SDK/NDK/Gradle
 target architectures -- 20-30+ minutes. Thanks to the two named/bind cache
 mounts above, later rebuilds after a code change only redo the fast "copy
 app source + package APK" steps (a couple minutes). When it finishes, you'll
-have an APK at `bin/psovmuedit-0.1.0-arm64-v8a_armeabi-v7a-debug.apk` (the
+have an APK at `bin/psovmuedit-0.3.0-arm64-v8a_armeabi-v7a-debug.apk` (the
 exact filename includes the version and architectures from
 `buildozer.spec`).
 
