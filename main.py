@@ -667,6 +667,94 @@ class AddItemDialog(tk.Toplevel):
         self.destroy()
 
 
+class ScannedVMU:
+    """One .bin file found while scanning a folder, plus (if it held a
+    decryptable character) everything needed to load it straight into the
+    editor without re-reading/re-decrypting the file a second time."""
+
+    def __init__(self, path, name, ok, label=None, image_bytes=None, chain=None,
+                 offset=None, data_size=None, dec=None, error=None):
+        self.path = path
+        self.name = name
+        self.ok = ok
+        self.label = label
+        self.image_bytes = image_bytes
+        self.chain = chain
+        self.offset = offset
+        self.data_size = data_size
+        self.dec = dec
+        self.error = error
+
+
+class VMUListDialog(tk.Toplevel):
+    """Modal list of every VMU file found in a scanned folder. Only entries
+    with a successfully-decrypted character are selectable."""
+
+    def __init__(self, parent, folder, results):
+        super().__init__(parent)
+        self.title("Choose a Character")
+        self.resizable(False, False)
+        self.result = None
+        self._results = results
+
+        body = tk.Frame(self, padx=12, pady=12)
+        body.pack(fill="both", expand=True)
+
+        tk.Label(body, text=folder, fg="gray", wraplength=420, justify="left").pack(
+            anchor="w", pady=(0, 8))
+
+        list_frame = tk.Frame(body)
+        list_frame.pack(fill="both", expand=True)
+        scrollbar = tk.Scrollbar(list_frame, orient="vertical")
+        self.listbox = tk.Listbox(list_frame, width=60, height=12,
+                                   yscrollcommand=scrollbar.set, exportselection=False)
+        scrollbar.config(command=self.listbox.yview)
+        self.listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        for r in results:
+            text = f"{r.name} -- {r.label}" if r.ok else f"{r.name} -- {r.error}"
+            self.listbox.insert(tk.END, text)
+            if not r.ok:
+                self.listbox.itemconfig(tk.END, fg="gray")
+
+        first_ok = next((i for i, r in enumerate(results) if r.ok), None)
+        if first_ok is not None:
+            self.listbox.selection_set(first_ok)
+            self.listbox.see(first_ok)
+
+        self.listbox.bind("<Double-Button-1>", lambda e: self._ok())
+
+        btns = tk.Frame(body)
+        btns.pack(fill="x", pady=(10, 0))
+        tk.Button(btns, text="Open", command=self._ok, width=10, default="active").pack(
+            side="left", padx=4)
+        tk.Button(btns, text="Cancel", command=self._cancel, width=10).pack(side="left", padx=4)
+
+        self.protocol("WM_DELETE_WINDOW", self._cancel)
+
+        self.transient(parent)
+        _center_on_parent(self, parent)
+        _force_to_front(self, self.listbox)
+        self.grab_set()
+        self.wait_window(self)
+
+    def _ok(self):
+        sel = self.listbox.curselection()
+        if not sel:
+            return
+        chosen = self._results[sel[0]]
+        if not chosen.ok:
+            messagebox.showerror("Can't open this file", chosen.error, parent=self)
+            return
+        self.result = chosen
+        self.destroy()
+
+    def _cancel(self):
+        self.result = None
+        self.destroy()
+
+
 class App:
     def __init__(self, root):
         self.root = root
@@ -691,10 +779,13 @@ class App:
         # Use a fixed medium-tone color scheme (not system default) so this stays
         # legible in both light and dark mode -- a pale gray background reads as
         # near-invisible in dark mode since tk doesn't auto-adapt.
-        self.drop_label = tk.Label(top, text="Drag a VMU .bin file here, or click to open",
+        drop_row = tk.Frame(top)
+        drop_row.pack(fill="x")
+
+        self.drop_label = tk.Label(drop_row, text="Drag a VMU .bin file here, or click to open",
                                     relief="ridge", borderwidth=3, height=3,
                                     bg="#2f5d8a", fg="white", font=("", 13, "bold"))
-        self.drop_label.pack(fill="x")
+        self.drop_label.pack(side="left", fill="x", expand=True)
         self.drop_label.bind("<Button-1>", lambda e: self._open_file_dialog())
 
         if _HAS_DND:
@@ -702,6 +793,9 @@ class App:
             self.drop_label.dnd_bind("<<Drop>>", self._on_drop)
         else:
             self.drop_label.config(text="Drag-and-drop unavailable (tkinterdnd2 not installed) -- click to open")
+
+        ttk.Button(drop_row, text="Choose Folder...", command=self._open_folder_dialog).pack(
+            side="left", padx=(8, 0))
 
         self.status_var = tk.StringVar(value="No file loaded.")
         tk.Label(self.root, textvariable=self.status_var, anchor="w", fg="gray").pack(fill="x", padx=8)
@@ -756,6 +850,9 @@ class App:
         config["last_serial"] = f"{serial:08X}"
         save_config(config)
 
+        self._finish_load(path, image_bytes, chain, offset, data_size, serial, dec)
+
+    def _finish_load(self, path, image_bytes, chain, offset, data_size, serial, dec):
         self.file_path = path
         self.image_bytes = image_bytes
         self.chain = chain
@@ -766,6 +863,70 @@ class App:
 
         self.status_var.set(f"Loaded {os.path.basename(path)} -- character file at blocks {chain[0]}..{chain[-1]}")
         self._build_character_panel()
+
+    def _open_folder_dialog(self):
+        folder = filedialog.askdirectory(title="Choose a folder of VMU images")
+        if folder:
+            self.root.after(200, lambda: self._scan_folder(folder))
+
+    def _peek_vmu(self, folder, name, serial):
+        """Best-effort: decrypt just far enough to read name/class/level, and
+        keep everything needed to load it straight into the editor without
+        re-reading the file. Never raises -- any failure (not a VMU image, no
+        character file, wrong serial) is reported in the result instead."""
+        path = os.path.join(folder, name)
+        try:
+            with open(path, "rb") as f:
+                image_bytes = f.read()
+            if len(image_bytes) != 131072:
+                raise ValueError(f"expected a 131072-byte VMU image, got {len(image_bytes)} bytes")
+            entry = vmu.find_character_file(image_bytes)
+            if entry is None:
+                raise ValueError("no character save (PSO______SYS) found in this file")
+            file_bytes, chain = vmu.read_file_bytes(image_bytes, entry.start_block)
+            data_section, data_size, offset = vmu.get_character_data_section(file_bytes)
+            dec = bytearray(crypto.decrypt_fixed(data_section, data_size, serial))
+        except crypto.ChecksumError:
+            return ScannedVMU(path, name, False, error="locked (serial doesn't match)")
+        except Exception as e:
+            return ScannedVMU(path, name, False, error=str(e) or "not a readable VMU image")
+
+        char_name = ch.get_name(dec).strip() or "(unnamed)"
+        class_name = ch.get_class_name(dec)
+        level = ch.get_displayed_level(dec)
+        label = f"{char_name} ({class_name}, Lv{level})"
+        return ScannedVMU(path, name, True, label, image_bytes=image_bytes, chain=chain,
+                           offset=offset, data_size=data_size, dec=dec)
+
+    def _scan_folder(self, folder):
+        bin_names = sorted(f for f in os.listdir(folder) if f.lower().endswith(".bin"))
+        if not bin_names:
+            messagebox.showerror("No VMU files found", f"No .bin files found in:\n{folder}")
+            return
+
+        config = load_config()
+        default_serial = config.get("last_serial")
+        error_message = None
+        while True:
+            dialog = SerialDialog(self.root, error_message, default_serial=default_serial)
+            serial = dialog.result_serial
+            if serial is None:
+                return  # cancelled
+            results = [self._peek_vmu(folder, name, serial) for name in bin_names]
+            if any(r.ok for r in results):
+                break
+            error_message = "None of the VMU files in this folder could be decrypted with that serial number."
+            default_serial = None
+
+        config["last_serial"] = f"{serial:08X}"
+        save_config(config)
+
+        list_dialog = VMUListDialog(self.root, folder, results)
+        chosen = list_dialog.result
+        if chosen is None:
+            return
+        self._finish_load(chosen.path, chosen.image_bytes, chosen.chain, chosen.offset,
+                           chosen.data_size, serial, chosen.dec)
 
     def _build_character_panel(self):
         for w in self.main_frame.winfo_children():
