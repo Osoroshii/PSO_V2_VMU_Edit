@@ -32,7 +32,7 @@ a "click to open" file picker instead of a drop target.
 
 There's also a touch-friendly Android port (built with [Kivy](https://kivy.org),
 sharing this same `psovmu/` core logic) -- grab the prebuilt APK from the
-[v0.3.0 release](https://github.com/Osoroshii/PSO_V2_VMU_Edit/releases/tag/v0.3.0)
+[v0.3.1 release](https://github.com/Osoroshii/PSO_V2_VMU_Edit/releases/tag/v0.3.1)
 or build it from source; see [android/README.md](android/README.md) and
 [android/INSTALL.md](android/INSTALL.md) for details.
 

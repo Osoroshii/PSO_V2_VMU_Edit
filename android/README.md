@@ -22,7 +22,7 @@ Confirmed end-to-end on-device: picking a folder on the SD card via the SAF
 picker, editing a character, saving, and verifying the result in-game.
 
 **Download**: a prebuilt APK is attached to the
-[v0.3.0 release](https://github.com/Osoroshii/PSO_V2_VMU_Edit/releases/tag/v0.3.0)
+[v0.3.1 release](https://github.com/Osoroshii/PSO_V2_VMU_Edit/releases/tag/v0.3.1)
 if you'd rather skip building it yourself -- see [INSTALL.md](INSTALL.md) for
 how to get it onto a device. To build it from source instead, see below.
 

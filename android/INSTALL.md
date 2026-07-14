@@ -12,15 +12,16 @@ end-to-end on-device in an earlier session: picking a folder on the SD card
 via the SAF picker, editing a character, saving, and verifying the result
 in-game (see README.md).
 
-**v0.3.0** (the [GitHub release](https://github.com/Osoroshii/PSO_V2_VMU_Edit/releases/tag/v0.3.0),
-built via the Docker command below) was installed on the same Retroid Pocket
-5 with `adb install -r` over the prior build -- no uninstall needed, the
-first real confirmation that the debug-keystore persistence fix (gotcha #7
-below) actually holds across a version bump, not just identical rebuilds.
-App launches cleanly and the picker screen renders correctly; the SAF
-folder-picker/edit/save round trip wasn't re-driven with this specific
-build (that step needs a human physically tapping through it, and was last
-confirmed with an earlier build -- see above).
+**v0.3.0** was installed on the same Retroid Pocket 5 with `adb install -r`
+over the prior build -- no uninstall needed, the first real confirmation
+that the debug-keystore persistence fix (gotcha #7 below) actually holds
+across a version bump, not just identical rebuilds.
+
+**v0.3.1** (the [GitHub release](https://github.com/Osoroshii/PSO_V2_VMU_Edit/releases/tag/v0.3.1),
+built via the Docker command below) adds Section ID editing to the editor
+screen. Installed the same way (`adb install -r`, no uninstall needed) and
+the full SAF folder-picker/edit/save round trip -- including the new
+Section ID field specifically -- was confirmed working on-device.
 
 ## 1. Build the APK
 
@@ -48,7 +49,7 @@ harmless to leave in. The first run downloads the Android SDK/NDK/Gradle
 target architectures -- 20-30+ minutes. Thanks to the two named/bind cache
 mounts above, later rebuilds after a code change only redo the fast "copy
 app source + package APK" steps (a couple minutes). When it finishes, you'll
-have an APK at `bin/psovmuedit-0.3.0-arm64-v8a_armeabi-v7a-debug.apk` (the
+have an APK at `bin/psovmuedit-0.3.1-arm64-v8a_armeabi-v7a-debug.apk` (the
 exact filename includes the version and architectures from
 `buildozer.spec`).
 
