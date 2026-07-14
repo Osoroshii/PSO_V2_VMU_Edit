@@ -94,9 +94,13 @@ def get_character_data_section(file_bytes):
     return file_bytes[offset:offset + data_size], data_size, offset
 
 
-def splice_and_save(image_bytes, chain, offset, new_data_section, save_path):
-    """Write new_data_section into file_bytes at `offset`, split back across the
-    block chain, and write the resulting full VMU image to save_path."""
+def splice(image_bytes, chain, offset, new_data_section):
+    """Pure (no I/O) core of splice_and_save: patch new_data_section into the
+    file bytes spanning `chain` at `offset`, re-split across blocks, and
+    return the resulting full VMU image bytes. Split out so callers that
+    can't just open(path, "wb") -- e.g. the Android app writing through a
+    Storage Access Framework ContentResolver instead of a plain path --
+    can still reuse this instead of duplicating the splice logic."""
     image = bytearray(image_bytes)
     # Rebuild the full file_bytes span covered by this chain, patch, then re-split.
     file_bytes = bytearray(b"".join(image[b * BLOCK:(b + 1) * BLOCK] for b in chain))
@@ -105,5 +109,12 @@ def splice_and_save(image_bytes, chain, offset, new_data_section, save_path):
     for b in chain:
         image[b * BLOCK:(b + 1) * BLOCK] = file_bytes[pos:pos + BLOCK]
         pos += BLOCK
+    return bytes(image)
+
+
+def splice_and_save(image_bytes, chain, offset, new_data_section, save_path):
+    """Write new_data_section into file_bytes at `offset`, split back across the
+    block chain, and write the resulting full VMU image to save_path."""
+    image = splice(image_bytes, chain, offset, new_data_section)
     with open(save_path, "wb") as f:
         f.write(image)

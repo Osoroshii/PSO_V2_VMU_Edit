@@ -57,8 +57,14 @@ def _row(*widgets, height=44):
     return box
 
 
-def _label(text, width=70):
-    return Label(text=text, size_hint=(None, 1), width=width)
+def _label(text, width_hint=0.28):
+    # Proportional (size_hint_x), not a fixed pixel width -- confirmed on a
+    # real device (Retroid Pocket 5) that Kivy's Android density detection
+    # can't be trusted (it silently fell back to density=0 there instead of
+    # the real 2.25), which threw off absolute-pixel sizing throughout the
+    # app. A fraction of the actual measured row width self-corrects
+    # regardless of what density Kivy thinks it's running at.
+    return Label(text=text, size_hint=(width_hint, 1))
 
 
 class ItemListScreen(Screen):
@@ -71,13 +77,13 @@ class ItemListScreen(Screen):
         self.add_widget(root)
 
         top_row = BoxLayout(size_hint=(1, None), height=40, spacing=8)
-        back_btn = Button(text="< Back", size_hint=(None, 1), width=90)
+        back_btn = Button(text="< Back", size_hint=(0.25, 1))
         back_btn.bind(on_release=lambda *_: self._go_back())
         top_row.add_widget(back_btn)
         self.title_label = Label(text="", halign="left", valign="middle")
         self.title_label.bind(size=lambda w, s: setattr(w, "text_size", s))
         top_row.add_widget(self.title_label)
-        clear_all_btn = Button(text="Clear All", size_hint=(None, 1), width=100)
+        clear_all_btn = Button(text="Clear All", size_hint=(0.28, 1))
         clear_all_btn.bind(on_release=lambda *_: self._clear_all())
         top_row.add_widget(clear_all_btn)
         root.add_widget(top_row)
@@ -118,7 +124,7 @@ class ItemListScreen(Screen):
             item_btn = Button(text=f"{slot}: {desc}", halign="left", shorten=True)
             item_btn.bind(size=lambda w, s: setattr(w, "text_size", s))
             item_btn.bind(on_release=lambda _b, s=slot: self._edit_slot(s))
-            clear_btn = Button(text="Clear", size_hint=(None, 1), width=70, disabled=not is_filled)
+            clear_btn = Button(text="Clear", size_hint=(0.18, 1), disabled=not is_filled)
             clear_btn.bind(on_release=lambda _b, s=slot: self._clear_slot(s))
             self.rows_box.add_widget(_row(item_btn, clear_btn))
 
@@ -184,10 +190,10 @@ class ItemPickerScreen(Screen):
         self.add_widget(root)
 
         top_row = BoxLayout(size_hint=(1, None), height=40, spacing=8)
-        cancel_btn = Button(text="Cancel", size_hint=(None, 1), width=90)
+        cancel_btn = Button(text="Cancel", size_hint=(0.25, 1))
         cancel_btn.bind(on_release=lambda *_: self._cancel())
         top_row.add_widget(cancel_btn)
-        top_row.add_widget(_label("Category:", width=80))
+        top_row.add_widget(_label("Category:", width_hint=0.3))
         self.category_spinner = Spinner(text=CATEGORIES[0], values=CATEGORIES)
         self.category_spinner.bind(text=lambda *_: self._rebuild_body())
         top_row.add_widget(self.category_spinner)
@@ -290,7 +296,7 @@ class ItemPickerScreen(Screen):
 
         srank_name_default = existing["name"] if existing and existing.get("kind") == "weapon" and existing.get("s_rank") else ""
         srank_name_field = TextInput(text=srank_name_default, multiline=False, hint_text="S-Rank name (max 8 letters, optional)")
-        self.body_box.add_widget(_row(_label("S-Rank name:", width=100), srank_name_field))
+        self.body_box.add_widget(_row(_label("S-Rank name:", width_hint=0.32), srank_name_field))
         self._w["srank_name"] = srank_name_field
 
         self.body_box.add_widget(Label(text="Attributes (normal weapons only):",
@@ -401,7 +407,7 @@ class ItemPickerScreen(Screen):
 
         modifier_default = existing["modifier"] if existing and existing.get("kind") == "unit" else 2
         modifier_field = _int_field(modifier_default)
-        self.body_box.add_widget(_row(_label("Modifier (max +-2):", width=140), modifier_field))
+        self.body_box.add_widget(_row(_label("Modifier (max +-2):", width_hint=0.38), modifier_field))
         self._w["modifier"] = modifier_field
         spinner.bind(text=lambda *_: self._update_equip_label())
         self._update_equip_label()
@@ -419,13 +425,13 @@ class ItemPickerScreen(Screen):
         default_species = species_names[existing["species"]] if existing and existing["species"] < len(species_names) else species_names[0]
 
         species_spinner = Spinner(text=default_species, values=species_names)
-        self.body_box.add_widget(_row(_label("Species:", width=90), species_spinner))
+        self.body_box.add_widget(_row(_label("Species:", width_hint=0.3), species_spinner))
         self._w["species_spinner"] = species_spinner
 
         stat_fields = {}
         for stat in ["DEF", "POW", "DEX", "MIND"]:
             field = _int_field(existing[stat] if existing else 50)
-            self.body_box.add_widget(_row(_label(f"{stat} level:", width=90), field))
+            self.body_box.add_widget(_row(_label(f"{stat} level:", width_hint=0.3), field))
             stat_fields[stat] = field
         self._w["mag_stats"] = stat_fields
         self.body_box.add_widget(Label(text="(4 stats should sum to 200 for a maxed mag)",
@@ -434,9 +440,9 @@ class ItemPickerScreen(Screen):
         synchro_field = _int_field(existing["synchro"] if existing else 120)
         iq_field = _int_field(existing["IQ"] if existing else 200)
         color_field = _int_field(existing["color"] if existing else 0)
-        self.body_box.add_widget(_row(_label("Synchro (max 120):", width=140), synchro_field))
-        self.body_box.add_widget(_row(_label("IQ (max 200):", width=140), iq_field))
-        self.body_box.add_widget(_row(_label("Color (0-15):", width=140), color_field))
+        self.body_box.add_widget(_row(_label("Synchro (max 120):", width_hint=0.38), synchro_field))
+        self.body_box.add_widget(_row(_label("IQ (max 200):", width_hint=0.38), iq_field))
+        self.body_box.add_widget(_row(_label("Color (0-15):", width_hint=0.38), color_field))
         self._w.update(mag_synchro=synchro_field, mag_iq=iq_field, mag_color=color_field)
 
         self.body_box.add_widget(Label(text="Photon Blasts (a mag can hold up to 3):",
@@ -454,9 +460,9 @@ class ItemPickerScreen(Screen):
         center_spinner = Spinner(text=pb_default("pb_center", 0, pb_all), values=pb_all)
         right_spinner = Spinner(text=pb_default("pb_right", 1, pb_all), values=pb_all)
         left_spinner = Spinner(text=pb_default("pb_left", 2, pb_left_options), values=pb_left_options)
-        self.body_box.add_widget(_row(_label("Center PB:", width=90), center_spinner))
-        self.body_box.add_widget(_row(_label("Right PB:", width=90), right_spinner))
-        self.body_box.add_widget(_row(_label("Left PB (4 opts max):", width=140), left_spinner))
+        self.body_box.add_widget(_row(_label("Center PB:", width_hint=0.3), center_spinner))
+        self.body_box.add_widget(_row(_label("Right PB:", width_hint=0.3), right_spinner))
+        self.body_box.add_widget(_row(_label("Left PB (4 opts max):", width_hint=0.38), left_spinner))
         self._w.update(pb_center=center_spinner, pb_right=right_spinner, pb_left=left_spinner)
 
     def _confirm_mag(self):
@@ -489,8 +495,8 @@ class ItemPickerScreen(Screen):
 
         tech_spinner = Spinner(text=default_choice, values=names)
         level_field = _int_field(existing["level"] if existing else 30)
-        self.body_box.add_widget(_row(_label("Technique:", width=90), tech_spinner))
-        self.body_box.add_widget(_row(_label("Level (1-30):", width=110), level_field))
+        self.body_box.add_widget(_row(_label("Technique:", width_hint=0.3), tech_spinner))
+        self.body_box.add_widget(_row(_label("Level (1-30):", width_hint=0.34), level_field))
         self._w.update(tech_spinner=tech_spinner, tech_level=level_field)
 
     def _confirm_tech_disk(self):
@@ -511,7 +517,7 @@ class ItemPickerScreen(Screen):
                 default_choice = match
 
         part_spinner = Spinner(text=default_choice, values=names)
-        self.body_box.add_widget(_row(_label("Part item:", width=90), part_spinner))
+        self.body_box.add_widget(_row(_label("Part item:", width_hint=0.3), part_spinner))
         self._w["part_spinner"] = part_spinner
 
     def _confirm_part(self):
@@ -541,8 +547,8 @@ class ItemPickerScreen(Screen):
             amount_field.disabled = not stackable
 
         tool_spinner.bind(text=update_amount_state)
-        self.body_box.add_widget(_row(_label("Tool item:", width=90), tool_spinner))
-        self.body_box.add_widget(_row(_label("Amount:", width=90), amount_field))
+        self.body_box.add_widget(_row(_label("Tool item:", width_hint=0.3), tool_spinner))
+        self.body_box.add_widget(_row(_label("Amount:", width_hint=0.3), amount_field))
         self._w.update(tool_spinner=tool_spinner, tool_amount=amount_field)
         update_amount_state()
 

@@ -23,7 +23,13 @@ version = 0.1.0
 # do NOT add pyobjus here -- that's the macOS-only desktop-dev equivalent.
 requirements = python3,kivy==2.3.1,plyer==2.1.0,pyjnius
 
-orientation = portrait
+# Retroid Pocket 5 (and gaming handhelds generally) are landscape-first
+# hardware -- confirmed on a real device that the previous `portrait` setting
+# caused Kivy/SDL2's window to be laid out with swapped width/height
+# (content clipped at the right edge, e.g. "Choose VMU Fold|" and
+# "Save + Resca|"), consistent with SDL2 sizing its surface for the panel's
+# native landscape dimensions while the manifest fought it into portrait.
+orientation = landscape
 fullscreen = 0
 
 # Android 13+ (API 33) replaced broad storage permissions with the

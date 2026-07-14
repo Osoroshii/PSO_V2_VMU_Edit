@@ -4,15 +4,15 @@ This walks through getting the app from source onto a real phone/tablet. If
 you just want to run it on your computer while developing, see
 [README.md](README.md) instead -- that's faster and doesn't need a device.
 
-**Heads up**: the APK builds successfully (confirmed -- see "Build gotchas"
-below for what that took) but hasn't been installed on a real Android device
-yet. Everything up through the character/item editors has been tested on
-desktop only. The install steps below are correct, but the app's actual
-on-device behavior (especially the folder picker, which uses a different
-native API on Android than on desktop) is unverified until someone runs
-through this for the first time. If something behaves unexpectedly, that's
-useful to know -- see [README.md](README.md)'s "Notes for whoever picks this
-up next" for the most likely trouble spots.
+**Status**: confirmed installed and running on a real device (Retroid Pocket
+5) -- the app launches, Python/Kivy/SDL2 initialize cleanly (no crash), and
+the picker screen renders correctly (after fixing a real on-device layout bug
+-- see README.md's "Notes for whoever picks this up next"). **Not yet
+exercised end-to-end** with a real VMU folder/serial on-device -- the folder
+picker opens Android's native Storage Access Framework UI, which needs a
+human physically tapping through it (can't be driven via `adb`). If that or
+anything past it behaves unexpectedly, see README.md for the most likely
+trouble spots.
 
 ## 1. Build the APK
 
@@ -94,12 +94,16 @@ wrong:
 
 Pick whichever is easiest for you:
 
-**Option A -- USB + adb** (needs [platform-tools](https://developer.android.com/tools/releases/platform-tools) / `adb` installed on your computer):
-1. Enable Developer Options on the device: Settings -> About Phone -> tap
-   "Build number" 7 times.
-2. In Developer Options, turn on USB Debugging.
-3. Plug the device in via USB, allow the "Allow USB debugging?" prompt on
-   the phone.
+**Option A -- USB + adb** (needs [platform-tools](https://developer.android.com/tools/releases/platform-tools) / `adb` installed on your computer -- `brew install android-platform-tools` on a Mac):
+1. Enable Developer Options on the device: Settings -> About Phone (or
+   About Device) -> tap "Build number" 7 times.
+2. **Separately**, inside Developer Options, turn on **USB Debugging** --
+   unlocking Developer Options does *not* also enable this; it's its own
+   toggle one screen deeper. If the device shows up in Android File
+   Transfer/Finder but `adb devices` lists nothing, this is almost always why.
+3. Plug the device in via USB. Run `adb devices -l` -- if it lists nothing or
+   `unauthorized`, check the device screen for an "Allow USB debugging?"
+   popup and tap **Allow**.
 4. From `android/`: `adb install bin/psovmuedit-*-debug.apk`
 
 **Option B -- copy the file over**
@@ -142,6 +146,23 @@ Both the folder and serial are remembered, so this is only needed once.
 
 ## Updating to a new version
 
-Rebuild the APK (step 1) and reinstall the same way -- `adb install -r
-bin/...-debug.apk` (the `-r` reinstalls over the existing app) or just open
-the new APK file again if you're installing manually.
+Rebuild the APK (step 1) and reinstall -- but a plain `adb install -r
+bin/...-debug.apk` can fail with `INSTALL_FAILED_UPDATE_INCOMPATIBLE:
+... signatures do not match`, since debug builds appear to get a fresh
+signing key each build (the debug keystore isn't persisted across separate
+`docker run` invocations in the setup above). If you hit that, uninstall
+first: `adb uninstall org.psovmuedit.psovmuedit && adb install
+bin/...-debug.apk`. If you're installing manually instead of via `adb`,
+uninstall the old version the same way (long-press the app icon -> Uninstall)
+before installing the new APK.
+
+## Useful `adb` commands while testing on-device
+
+```
+adb devices -l                                            # confirm the device is connected+authorized
+adb install -r bin/psovmuedit-*-debug.apk                 # install/update (see gotcha above)
+adb shell am start -n org.psovmuedit.psovmuedit/org.kivy.android.PythonActivity   # launch without touching the screen
+adb logcat -c && adb logcat -d | grep -i python           # clear, then read the app's own stdout/stderr (Kivy logs, tracebacks)
+adb exec-out screencap -p > screenshot.png                # grab a screenshot of whatever's currently on screen
+adb shell wm size; adb shell wm density                   # the device's real resolution/density, if a layout looks wrong
+```

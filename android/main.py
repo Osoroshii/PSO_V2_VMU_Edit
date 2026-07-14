@@ -26,17 +26,13 @@ from kivy.uix.screenmanager import Screen, ScreenManager
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 
+import fileio
 import storage
 import vmu_scan
 from psovmu import character as ch
 from psovmu import crypto
 from session import CharacterSession
 from item_screens import ItemListScreen, ItemPickerScreen
-
-try:
-    from plyer import filechooser
-except ImportError:
-    filechooser = None
 
 STAT_KEYS = ["ATP", "MST", "EVP", "HP", "DFP", "ATA", "LCK"]
 
@@ -64,18 +60,18 @@ class PickerScreen(Screen):
             text=self._folder_display(), halign="left", valign="middle", shorten=True
         )
         self.folder_label.bind(size=lambda w, s: setattr(w, "text_size", s))
-        pick_btn = Button(text="Choose VMU Folder", size_hint=(None, 1), width=200)
+        pick_btn = Button(text="Choose VMU Folder", size_hint=(0.35, 1))
         pick_btn.bind(on_release=lambda *_: self._pick_folder())
         folder_row.add_widget(self.folder_label)
         folder_row.add_widget(pick_btn)
         root.add_widget(folder_row)
 
         serial_row = BoxLayout(size_hint=(1, None), height=44, spacing=8)
-        serial_row.add_widget(Label(text="Serial:", size_hint=(None, 1), width=60))
+        serial_row.add_widget(Label(text="Serial:", size_hint=(0.15, 1)))
         self.serial_input = TextInput(
             text=self.config.get("serial", ""), multiline=False, hint_text="e.g. 4E62F237"
         )
-        save_serial_btn = Button(text="Save + Rescan", size_hint=(None, 1), width=150)
+        save_serial_btn = Button(text="Save + Rescan", size_hint=(0.3, 1))
         save_serial_btn.bind(on_release=lambda *_: self._save_serial_and_rescan())
         serial_row.add_widget(self.serial_input)
         serial_row.add_widget(save_serial_btn)
@@ -99,12 +95,9 @@ class PickerScreen(Screen):
         return f"Folder: {folder}" if folder else "No folder chosen yet"
 
     def _pick_folder(self):
-        if filechooser is None:
-            _show_message("Unavailable", "plyer's filechooser isn't installed.")
-            return
         try:
-            filechooser.choose_dir(on_selection=self._on_folder_chosen)
-        except Exception as e:  # plyer's Android backend can raise NotImplementedError etc.
+            fileio.pick_folder(self._on_folder_chosen)
+        except Exception as e:
             _show_message("Folder picker failed", str(e))
 
     def _on_folder_chosen(self, selection):
@@ -150,14 +143,15 @@ class PickerScreen(Screen):
             row = Button(text=text, size_hint=(1, None), height=48, halign="left")
             row.bind(size=lambda w, s: setattr(w, "text_size", s))
             if r.ok:
-                row.bind(on_release=lambda _btn, path=r.path: self._open_character(path, serial))
+                row.bind(on_release=lambda _btn, r=r: self._open_character(r, serial))
             else:
                 row.disabled = True
             self.results_box.add_widget(row)
 
-    def _open_character(self, path, serial):
+    def _open_character(self, scanned, serial):
         try:
-            session = CharacterSession.load(path, serial)
+            session = CharacterSession.load(
+                scanned.path, serial, name=scanned.name, folder_ref=scanned.folder_ref)
         except crypto.ChecksumError as e:
             _show_message("Can't open", str(e))
             return
@@ -179,7 +173,7 @@ class EditorScreen(Screen):
         self.add_widget(root)
 
         top_row = BoxLayout(size_hint=(1, None), height=40, spacing=8)
-        back_btn = Button(text="< Back", size_hint=(None, 1), width=90)
+        back_btn = Button(text="< Back", size_hint=(0.2, 1))
         back_btn.bind(on_release=lambda *_: self._go_back())
         top_row.add_widget(back_btn)
         self.title_label = Label(text="", halign="left", valign="middle")
@@ -188,16 +182,16 @@ class EditorScreen(Screen):
         root.add_widget(top_row)
 
         fields = GridLayout(cols=4, size_hint=(1, None), height=44)
-        fields.add_widget(Label(text="Level:", size_hint=(None, 1), width=70))
+        fields.add_widget(Label(text="Level:", size_hint=(0.15, 1)))
         self.level_input = _int_field()
         fields.add_widget(self.level_input)
-        fields.add_widget(Label(text="EXP:", size_hint=(None, 1), width=70))
+        fields.add_widget(Label(text="EXP:", size_hint=(0.15, 1)))
         self.exp_input = _int_field()
         fields.add_widget(self.exp_input)
         root.add_widget(fields)
 
         meseta_row = GridLayout(cols=4, size_hint=(1, None), height=44)
-        meseta_row.add_widget(Label(text="Meseta:", size_hint=(None, 1), width=70))
+        meseta_row.add_widget(Label(text="Meseta:", size_hint=(0.15, 1)))
         self.meseta_input = _int_field()
         meseta_row.add_widget(self.meseta_input)
         meseta_row.add_widget(Label())
@@ -206,7 +200,7 @@ class EditorScreen(Screen):
 
         stat_grid = GridLayout(cols=4, size_hint=(1, None), height=44 * 2, spacing=6)
         for k in STAT_KEYS:
-            stat_grid.add_widget(Label(text=f"{k}:", size_hint=(None, 1), width=50))
+            stat_grid.add_widget(Label(text=f"{k}:", size_hint=(0.13, 1)))
             field = _int_field()
             self.stat_inputs[k] = field
             stat_grid.add_widget(field)
@@ -320,7 +314,8 @@ class EditorScreen(Screen):
         except Exception as e:
             _show_message("Save failed", str(e))
             return
-        _show_message("Saved", f"Saved successfully.\n(Backup at {self.session.path}.bak)")
+        backup_name = (self.session.name or "character") + ".bak"
+        _show_message("Saved", f"Saved successfully.\n(Backup: {backup_name}, same folder)")
 
     def _go_back(self):
         self.manager.current = "picker"

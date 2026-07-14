@@ -5,14 +5,21 @@ built with [Kivy](https://kivy.org) so it can be packaged as a real Android APK.
 `psovmu/` in this directory is a symlink to `../psovmu` -- there's only one copy
 of the crypto/character/item logic, shared by both UIs.
 
-**Status**: feature-complete parity with the desktop app, and the APK builds
-successfully. Folder picker with persisted folder+serial and a name/class/
-level preview; a character editor (level/EXP/meseta/stats/quest-flags); and
-Bank/Inventory item editing for all 10 categories (Guns/Swords/Wands incl.
-S-rank, Armor, Shields, Units, Mags, Technique Disks, Parts, Tools), including
-the same equip-check warning and existing-item pre-fill the desktop app has.
-Not yet done: installing it on a real device (plyer's Android folder-picker
-backend is unverified until then -- see [INSTALL.md](INSTALL.md)).
+**Status**: feature-complete parity with the desktop app, and installed and
+running on a real device (Retroid Pocket 5). Folder picker with persisted
+folder+serial and a name/class/level preview; a character editor (level/EXP/
+meseta/stats/quest-flags); and Bank/Inventory item editing for all 10
+categories (Guns/Swords/Wands incl. S-rank, Armor, Shields, Units, Mags,
+Technique Disks, Parts, Tools), including the same equip-check warning and
+existing-item pre-fill the desktop app has. `orientation = landscape` in
+`buildozer.spec` (gaming handhelds are landscape-first hardware) and every
+widget uses proportional `size_hint` rather than fixed pixel widths --
+confirmed on-device that Kivy's Android density detection can silently fall
+back to a bogus value (`density=0.0` instead of the real `2.25` on the
+Retroid Pocket 5), which broke absolute-pixel layouts (buttons/labels clipped
+off the right edge of the screen) but doesn't affect proportional ones. Not
+yet exercised end-to-end with real VMU files on-device (the folder picker
+opens Android's native SAF UI, which needs a human tapping through it).
 
 ## Running on desktop (do this first)
 
@@ -49,6 +56,18 @@ working APK, not just in theory). The resulting APK lands in `bin/`.
 
 ## Notes for whoever picks this up next
 
+- **Never use fixed pixel `width=`/`height=` for a widget meant to share a row
+  with a flexible sibling -- use proportional `size_hint` instead.** Confirmed
+  the hard way on a real Retroid Pocket 5: Kivy's Android density detection
+  reported `density=0.0` and `dpi=96.0` (both clearly wrong fallback values --
+  the device's real density is 2.25 / 360dpi per `adb shell wm density`)
+  instead of raising an error, and every fixed-pixel width in the app ended up
+  visually clipped off the right edge of the screen as a result, even though
+  `Window.size` itself was reported correctly. Proportional `size_hint`
+  self-corrects regardless of whatever Kivy's density detection does on a
+  given device, so it's the safer default for this app generally, not just a
+  one-off fix. If new screens get added, follow `item_screens.py`'s `_row()`/
+  `_label(text, width_hint=...)` pattern rather than reintroducing `width=N`.
 - `item_screens.py` (`ItemListScreen` + `ItemPickerScreen`) is the Bank/
   Inventory equivalent of the desktop app's `_build_item_tab`/`AddItemDialog`
   in `../main.py` -- same category dispatch, same field layouts per category,
