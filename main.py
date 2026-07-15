@@ -20,7 +20,7 @@ try:
 except ImportError:
     _HAS_DND = False
 
-from psovmu import vmu, crypto, character as ch, items, item_database as db
+from psovmu import vmu, crypto, character as ch, items, item_database as db, mag_icons, weapon_icons, disc_extract
 
 CONFIG_PATH = os.path.expanduser("~/.psovmu_editor_config.json")
 
@@ -39,6 +39,61 @@ def save_config(config):
             json.dump(config, f)
     except OSError:
         pass  # best-effort -- losing the remembered serial isn't worth crashing over
+
+
+_icon_setup_declined = False  # don't re-nag every dropdown change in one run,
+                              # for ANY icon category, once the user says no
+
+
+def _ensure_icons_extracted(icon_module):
+    """One-time (per install, then cached forever) prompt for the user's own
+    PSO V2 disc image, used to extract item icons (mags, weapons, ...)
+    locally -- no network access, no bundled game assets. All icon modules
+    share the same remembered disc path/declined-state: once the user has
+    located their disc for one category, every other category reuses it
+    silently. Returns True if `icon_module`'s icons are ready to use."""
+    global _icon_setup_declined
+    if icon_module.is_extracted():
+        return True
+    if _icon_setup_declined:
+        return False
+
+    config = load_config()
+    disc_path = config.get("pso_v2_disc_path")
+    if disc_path and os.path.exists(disc_path):
+        try:
+            icon_module.extract_all(disc_path)
+            return True
+        except Exception:
+            pass  # remembered path stopped working -- fall through to re-prompt
+
+    if not messagebox.askyesno(
+        "Item icons",
+        "To show item pictures, this tool needs to pull icons out of your own "
+        "PSO Ver.2 disc image (a .cdi or .iso file) -- nothing is downloaded "
+        "or bundled with the app.\n\nLocate your disc image now?",
+    ):
+        _icon_setup_declined = True
+        return False
+
+    path = filedialog.askopenfilename(
+        title="Select your PSO Ver.2 disc image",
+        filetypes=[("Disc images", "*.cdi *.iso *.bin"), ("All files", "*.*")],
+    )
+    if not path:
+        _icon_setup_declined = True
+        return False
+
+    try:
+        icon_module.extract_all(path)
+    except (disc_extract.DiscFormatError, FileNotFoundError, OSError) as e:
+        messagebox.showerror("Couldn't read disc image", str(e))
+        _icon_setup_declined = True
+        return False
+
+    config["pso_v2_disc_path"] = path
+    save_config(config)
+    return True
 
 
 def _activate_app():
@@ -279,6 +334,9 @@ class AddItemDialog(tk.Toplevel):
         combo.grid(row=0, column=1, sticky="ew")
         combo.bind("<<ComboboxSelected>>", lambda e: self._update_weapon_fields())
 
+        self.weapon_image_label = tk.Label(self.body_frame)
+        self.weapon_image_label.grid(row=0, column=2, rowspan=9, padx=(16, 0), sticky="n")
+
         self.grind_var = tk.IntVar(value=existing["grind"] if existing else 0)
         tk.Label(self.body_frame, text="Grind:").grid(row=1, column=0, sticky="w")
         tk.Spinbox(self.body_frame, from_=0, to=99, textvariable=self.grind_var, width=6).grid(row=1, column=1, sticky="w")
@@ -335,7 +393,31 @@ class AddItemDialog(tk.Toplevel):
             ok, msg = db.check_equip(self.char_class_idx, 0, wclass, wvariant)
         except Exception:
             ok, msg = True, ""
+            wclass = wvariant = None
         self.equip_label.config(text=msg, fg="black" if ok else "red")
+        self._update_weapon_image(wclass, wvariant)
+
+    def _update_weapon_image(self, wclass, wvariant):
+        if wclass is None:
+            self.weapon_image_label.config(image="", text="")
+            return
+
+        if not weapon_icons.is_extracted():
+            if not _ensure_icons_extracted(weapon_icons):
+                self.weapon_image_label.config(image="", text="(no disc image configured)", fg="gray")
+                return
+
+        path = weapon_icons.get_cached_path(wclass, wvariant)
+        if path is None:
+            self.weapon_image_label.config(image="", text="(no image for this item)", fg="gray")
+            return
+        try:
+            img = tk.PhotoImage(file=path)
+        except tk.TclError:
+            self.weapon_image_label.config(image="", text="(image failed to load)", fg="gray")
+            return
+        self._weapon_image_ref = img  # tkinter needs this reference kept alive
+        self.weapon_image_label.config(image=img, text="")
 
     def _confirm_weapon(self):
         choice = self.weapon_choice.get()
@@ -482,8 +564,14 @@ class AddItemDialog(tk.Toplevel):
 
         tk.Label(self.body_frame, text="Species:").grid(row=0, column=0, sticky="w")
         self.mag_species_var = tk.StringVar(value=default_species)
-        ttk.Combobox(self.body_frame, textvariable=self.mag_species_var, values=species_names,
-                     state="readonly", width=28).grid(row=0, column=1, sticky="w")
+        species_combo = ttk.Combobox(self.body_frame, textvariable=self.mag_species_var, values=species_names,
+                                      state="readonly", width=28)
+        species_combo.grid(row=0, column=1, sticky="w")
+        species_combo.bind("<<ComboboxSelected>>", lambda e: self._update_mag_image())
+
+        self.mag_image_label = tk.Label(self.body_frame)
+        self.mag_image_label.grid(row=0, column=2, rowspan=6, padx=(16, 0), sticky="n")
+        self._update_mag_image()
 
         stat_vars = {}
         for i, stat in enumerate(["DEF", "POW", "DEX", "MIND"]):
@@ -531,6 +619,29 @@ class AddItemDialog(tk.Toplevel):
         self.mag_pb_left_var = tk.StringVar(value=left_default)
         ttk.Combobox(self.body_frame, textvariable=self.mag_pb_left_var, values=pb_left_options,
                      state="readonly", width=16).grid(row=12, column=1, sticky="w")
+
+    def _update_mag_image(self):
+        # "Varuna (1)" -> 1
+        species_id = int(self.mag_species_var.get().rsplit("(", 1)[1].rstrip(")"))
+
+        if not mag_icons.is_extracted():
+            if not _ensure_icons_extracted(mag_icons):
+                self.mag_image_label.config(image="", text="(no disc image configured)", fg="gray")
+                return
+
+        path = mag_icons.get_cached_path(species_id)
+        if path is None:
+            self.mag_image_label.config(image="", text="(no image for this species)", fg="gray")
+            return
+        try:
+            img = tk.PhotoImage(file=path)
+            if img.width() < 100:  # icons are 64x64 -- upscale for visibility
+                img = img.zoom(2, 2)
+        except tk.TclError:
+            self.mag_image_label.config(image="", text="(image failed to load)", fg="gray")
+            return
+        self._mag_image_ref = img  # tkinter needs this reference kept alive
+        self.mag_image_label.config(image=img, text="")
 
     def _confirm_mag(self):
         s = self.mag_stat_vars

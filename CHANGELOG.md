@@ -5,6 +5,39 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Mag picture preview** in the Mag item builder (desktop): shows the selected
+  species' actual in-game icon next to the dropdown, updating live as you
+  change species. Icons are extracted directly from the user's own PSO Ver.2
+  disc image (`.cdi`/`.iso`) the first time a mag preview is needed --
+  `psovmu/disc_extract.py` reads the disc's `/PSO/ITEMKT.AFS` archive (parsing
+  the `.cdi` track table, ISO9660 filesystem, AFS/PVM containers, and
+  twiddled-ARGB4444 PVR textures with no external dependencies), and
+  `psovmu/mag_icons.py` sorts the 57 named textures (`magNN` + `mNN`) into
+  species_id order and caches them as PNGs in `~/.psovmu_editor_cache/`. No
+  network access and no bundled game assets -- each user extracts from their
+  own disc, matching how this project already extracts its item catalog (see
+  `docs/REFERENCE.md` section 10). Ordering confirmed by visual comparison
+  against known mag appearances, not just assumed from the file's internal
+  naming.
+- **Weapon picture preview** in the Guns/Swords/Wands item builders, same
+  pattern as mags: shows the selected weapon's actual in-game render next to
+  the dropdown. `psovmu/weapon_icons.py` maps each weapon's (class, variant)
+  to a numbered icon in `/PSO/ITEMKT.AFS` via `real_item_id - 40` (the item's
+  global ID in the real item parameter table), extracting 124 of the
+  catalog's 206 weapons this way -- the rest (mostly high-ID rares like the
+  Yasminkov series) don't have an icon in this particular archive and show
+  "no image for this item" rather than a misleading substitute. `psovmu/
+  disc_extract.py`'s PVR decoder now also handles the RGB565 pixel format
+  these weapon renders use (larger 256x256 images on a black backdrop, vs.
+  mags' 64x64 ARGB4444 icons), treating pure black as transparent. Both icon
+  categories now share one disc-selection prompt (`_ensure_icons_extracted`
+  in `main.py`) -- locating your disc once covers every category.
+
+### Fixed
+- `item_database.MAG_SPECIES`: `"DAVIL'S TAIL"` was a typo (present since the
+  original curated list) for `"DEVIL'S TAIL"`.
+
 ## [0.3.1] - 2026-07-14
 
 ### Added

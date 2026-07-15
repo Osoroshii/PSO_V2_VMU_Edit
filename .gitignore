@@ -2,6 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+.DS_Store
 
 # Android build artifacts/caches (android/.buildozer/ alone runs several GB;
 # android/bin/ holds the built .apk) -- never belongs in the repo, rebuild

@@ -179,7 +179,7 @@ MAG_SPECIES = [
     "Kabanda", "Ravana", "Marica", "Soniti", "Preta", "Andhaka", "Bana", "Naraka", "Madhu", "Churel",
     "ROBOCHAO", "OPA-OPA", "PIAN", "CHAO", "CHU CHU", "KAPU KAPU", "ANGEL'S WING", "DEVIL'S WING",
     "ELENOR", "MARK3", "MASTER SYSTEM", "GENESIS", "SEGA SATURN", "DREAMCAST", "HAMBURGER",
-    "PANZER'S TAIL", "DAVIL'S TAIL",
+    "PANZER'S TAIL", "DEVIL'S TAIL",
 ]
 MAG_SPECIES_COUNT = len(MAG_SPECIES)
 
