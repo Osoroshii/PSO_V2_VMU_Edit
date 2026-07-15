@@ -87,8 +87,8 @@ class _CDIReader:
     """Presents the data track of a .cdi as a flat, ISO9660-relative byte
     stream, translating on the fly -- no intermediate ISO file is written."""
 
-    def __init__(self, path):
-        self._f = open(path, "rb")
+    def __init__(self, path, mode="rb"):
+        self._f = open(path, mode)
         tracks = _parse_cdi_tracks(self._f)
         data_tracks = [t for t in tracks if t["mode"] in (1, 2)]
         if not data_tracks:
@@ -116,6 +116,24 @@ class _CDIReader:
             remaining -= take
         return bytes(out)
 
+    def write(self, iso_offset, data):
+        """In-place overwrite only -- does not support changing a file's length
+        (that would require rewriting the FAT/directory extents, which this
+        never does). The caller is responsible for writing to a COPY of the
+        disc image, never the original."""
+        pos = iso_offset
+        remaining = len(data)
+        src_off = 0
+        while remaining > 0:
+            sector_index = pos // SECTOR
+            sector_off = pos % SECTOR
+            take = min(remaining, SECTOR - sector_off)
+            self._f.seek(self._base + sector_index * 2336 + 8 + sector_off)
+            self._f.write(data[src_off:src_off + take])
+            pos += take
+            src_off += take
+            remaining -= take
+
     def close(self):
         self._f.close()
 
@@ -123,23 +141,28 @@ class _CDIReader:
 class _ISOReader:
     """A plain ISO9660 image (already-extracted data track) -- identity mapping."""
 
-    def __init__(self, path):
-        self._f = open(path, "rb")
+    def __init__(self, path, mode="rb"):
+        self._f = open(path, mode)
         self.start_lba = 0
 
     def read(self, iso_offset, length):
         self._f.seek(iso_offset)
         return self._f.read(length)
 
+    def write(self, iso_offset, data):
+        self._f.seek(iso_offset)
+        self._f.write(data)
+
     def close(self):
         self._f.close()
 
 
-def open_disc(path):
+def open_disc(path, writable=False):
+    mode = "r+b" if writable else "rb"
     lower = path.lower()
     if lower.endswith(".cdi"):
-        return _CDIReader(path)
-    return _ISOReader(path)
+        return _CDIReader(path, mode)
+    return _ISOReader(path, mode)
 
 
 def _read_dirrec(entry_bytes, lba_offset):
